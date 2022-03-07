@@ -28,6 +28,10 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* List of processes in THREAD_BLOCKED state, that is, processes
+	that are in sleep for a given ticks. */
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -108,6 +112,7 @@ thread_init (void) {
 	/* Init the globla thread context */
 	lock_init (&tid_lock);
 	list_init (&ready_list);
+	list_init (&sleep_list);
 	list_init (&destruction_req);
 
 	/* Set up a thread structure for the running thread. */
@@ -131,6 +136,38 @@ thread_start (void) {
 
 	/* Wait for the idle thread to initialize idle_thread. */
 	sema_down (&idle_started);
+}
+
+void thread_sleep (int64_t ticks) {
+	/* Make Thread Sleep */
+	struct thread *curr = thread_current ();
+	enum intr_level old_level;
+
+	old_level = intr_disable (); // disable interrupt
+	if (curr != idle_thread) {
+		curr->ticks = ticks;
+		list_push_back(&sleep_list, &curr->elem);
+		thread_block(); // 현재 thread를 block 상태로 만들기
+	} 
+	intr_set_level (old_level); // interrupt disable 해제
+}
+
+void thread_awake (int64_t ticks) {
+	/* Awake Thread if ticks is over */
+	if (!list_empty (&sleep_list)) {
+		struct list_elem *e = list_begin (&sleep_list);
+
+		while (e != list_end (&sleep_list)) {
+			struct thread *sleep_thread = list_entry(e, struct thread, elem);
+			if (sleep_thread->ticks <= ticks) {
+				e = list_remove (e);
+				thread_unblock (sleep_thread); 
+			}
+			else {
+				e = list_next (e);
+			}
+		}
+	}
 }
 
 /* Called by the timer interrupt handler at each timer tick.
