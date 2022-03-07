@@ -161,7 +161,7 @@ void thread_awake (int64_t ticks) {
 			struct thread *sleep_thread = list_entry(e, struct thread, elem);
 			if (sleep_thread->ticks <= ticks) {
 				e = list_remove (e);
-				thread_unblock (sleep_thread); 
+				thread_unblock (sleep_thread); // Unblock -> ready_list에 집어넣기
 			}
 			else {
 				e = list_next (e);
