@@ -277,7 +277,8 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+	// list_push_back (&ready_list, &t->elem);
+	list_insert_ordered (&ready_list, &t->elem, thread_priority_comparator, 0);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
@@ -340,7 +341,8 @@ thread_yield (void) {
 
 	old_level = intr_disable ();
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
+		// list_push_back (&ready_list, &curr->elem);
+		list_insert_ordered(&ready_list, &curr->elem, thread_priority_comparator, 0);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -355,6 +357,15 @@ thread_set_priority (int new_priority) {
 int
 thread_get_priority (void) {
 	return thread_current ()->priority;
+}
+
+/* Priority Comparator */
+int
+thread_priority_comparator (struct list_elem *l, struct list_elem *r, void *aux UNUSED) {
+	if (list_entry(l, struct thread, elem)->priority < list_entry(r, struct thread, elem)->priority)
+		return 0;
+	else 
+		return 1;
 }
 
 /* Sets the current thread's nice value to NICE. */
