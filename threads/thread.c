@@ -378,12 +378,12 @@ thread_get_priority (void) {
 }
 
 /* Priority Comparator */
-int
-thread_priority_comparator (struct list_elem *l, struct list_elem *r, void *aux UNUSED) {
+bool
+thread_priority_comparator (const struct list_elem *l, const struct list_elem *r, void *aux UNUSED) {
 	if (list_entry(l, struct thread, elem)->priority < list_entry(r, struct thread, elem)->priority)
-		return 0;
+		return false;
 	else 
-		return 1;
+		return true;
 }
 
 /* Sets the current thread's nice value to NICE. */
