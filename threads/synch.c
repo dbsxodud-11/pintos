@@ -201,7 +201,19 @@ lock_acquire (struct lock *lock) {
 	struct thread *curr = thread_current ();
 	curr->wait_on_lock = lock;
 	
+	// if (lock->holder) {
+	// 	for (int i=0; i<DEPTH; i++) {
+	// 		if (curr->wait_on_lock) {
+	// 			curr->wait_on_lock->holder->priority = curr->priority;
+	// 			curr = curr->wait_on_lock->holder;
+	// 		}
+	// 		else break;
+	// 	}
+	// }
+
+	/* Donate Priority - add Multiple Version */
 	if (lock->holder) {
+		list_insert_ordered(&lock->holder->donations, &curr->donation_elem, thread_priority_comparator, 0);
 		for (int i=0; i<DEPTH; i++) {
 			if (curr->wait_on_lock) {
 				curr->wait_on_lock->holder->priority = curr->priority;
@@ -249,9 +261,28 @@ lock_release (struct lock *lock) {
 
 	lock->holder = NULL;
 
+	/* Donate Priority */
 	struct thread *curr = thread_current ();
-	curr->priority = curr->original_priority;
+	// curr->priority = curr->original_priority;
 	
+	/* Donate Priority - add Multiple Version */
+	struct list_elem *e;
+	for (e = list_begin (&curr->donations); e != list_end (&curr->donations); e = list_next (e)) {
+		struct thread *donator = list_entry (e, struct thread, donation_elem);
+		if (donator->wait_on_lock == lock) {
+			list_remove (&donator->donation_elem);
+			break;
+		}
+	}
+
+	if (!list_empty (&curr->donations)) {
+		// list_sort (&curr->donations, thread_priority_comparator, 0);
+		struct thread *donator_with_highest_priority = list_entry (list_begin (&curr->donations), struct thread, donation_elem);
+		curr->priority = donator_with_highest_priority->priority; 
+	}
+	else
+		curr->priority = curr->original_priority;
+
 	sema_up (&lock->semaphore);
 }
 
