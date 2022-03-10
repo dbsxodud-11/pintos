@@ -94,6 +94,9 @@ struct thread {
 	int original_priority;				/* Original Priority */
 	int64_t ticks;						/* Sleep ticks. */
 
+	/* For nested donation */
+	struct lock *wait_on_lock;
+
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
