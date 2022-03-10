@@ -353,6 +353,9 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	thread_current ()->original_priority = new_priority;
+
+	check_donation ();
 	check_priority ();
 }
 
@@ -371,6 +374,18 @@ check_priority (void) {
 	}
 }
 
+/* Check donation when the priority of accepter thread has been changed */
+void
+check_donation (void) {
+	struct thread *curr = thread_current ();
+
+	if (!list_empty (&curr->donations)) {
+		list_sort (&curr->donations, thread_priority_comparator, 0);
+		struct thread *donator_with_highest_priority = list_entry (list_begin (&curr->donations), struct thread, donation_elem);
+		curr->priority = donator_with_highest_priority->priority; 
+	}
+}
+
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) {
@@ -380,7 +395,15 @@ thread_get_priority (void) {
 /* Priority Comparator */
 bool
 thread_priority_comparator (const struct list_elem *l, const struct list_elem *r, void *aux UNUSED) {
-	if (list_entry(l, struct thread, elem)->priority < list_entry(r, struct thread, elem)->priority)
+	if (list_entry(l, struct thread, elem)->priority <= list_entry(r, struct thread, elem)->priority)
+		return false;
+	else 
+		return true;
+}
+
+bool
+thread_donation_priority_comparator (const struct list_elem *l, const struct list_elem *r, void *aux UNUSED) {
+	if (list_entry(l, struct thread, donation_elem)->priority <= list_entry(r, struct thread, donation_elem)->priority)
 		return false;
 	else 
 		return true;

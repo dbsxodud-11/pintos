@@ -149,7 +149,10 @@ int thread_get_priority (void);
 void thread_set_priority (int);
 
 void check_priority (void);
+void check_donation (void);
+
 bool thread_priority_comparator(const struct list_elem *a, const struct list_elem *b, void *aux);
+bool thread_donation_priority_comparator(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
