@@ -28,6 +28,15 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* For Advanced Scheduler */
+#define NICE_MIN -20
+#define NICE_DEFAULT 0
+#define NICE_MAX 20
+
+#define RECENT_CPU_DEFAULT 0
+
+#define LOAD_AVG_DEFAULT 0
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -101,6 +110,10 @@ struct thread {
 	struct list donations;
 	struct list_elem donation_elem;
 
+	/* For Advanced Scheduler */
+	int recent_cpu;
+	int nice;
+
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
@@ -153,6 +166,12 @@ void check_donation (void);
 
 bool thread_priority_comparator(const struct list_elem *a, const struct list_elem *b, void *aux);
 bool thread_donation_priority_comparator(const struct list_elem *a, const struct list_elem *b, void *aux);
+
+void update_recent_cpu (bool curr);
+void thread_update_recent_cpu (struct thread *t);
+void recalculate_priority (void);
+void thread_recalculate_priority (struct thread *t);
+void recalculate_load_avg (void);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

@@ -1,3 +1,4 @@
+#include "threads/fixed_point.h"
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
@@ -23,7 +24,7 @@
 /* Random value for basic thread
    Do not modify this value. */
 #define THREAD_BASIC 0xd42df210
-
+ 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -57,6 +58,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+int load_avg;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -136,6 +138,9 @@ thread_start (void) {
 
 	/* Wait for the idle thread to initialize idle_thread. */
 	sema_down (&idle_started);
+
+	/* Initialize load_avg value */
+	load_avg = LOAD_AVG_DEFAULT;
 }
 
 void thread_sleep (int64_t ticks) {
@@ -352,11 +357,13 @@ thread_yield (void) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
-	thread_current ()->original_priority = new_priority;
+	if (!thread_mlfqs) {
+		thread_current ()->priority = new_priority;
+		thread_current ()->original_priority = new_priority;
 
-	check_donation ();
-	check_priority ();
+		check_donation ();
+		check_priority ();
+	}
 }
 
 /* Check current thread is still on the highest priority */
@@ -389,6 +396,8 @@ check_donation (void) {
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) {
+	if (thread_mlfqs)
+		thread_recalculate_priority (thread_current ());
 	return thread_current ()->priority;
 }
 
@@ -409,31 +418,118 @@ thread_donation_priority_comparator (const struct list_elem *l, const struct lis
 		return true;
 }
 
+void
+update_recent_cpu (bool curr) {
+	// On each timer tick, the running thread's recent cpu is incremented by 1. 
+	if (curr) {
+		struct thread *t = thread_current ();
+		if (t != idle_thread) {
+			t->recent_cpu = add_x_and_n (t->recent_cpu, 1);
+		}
+	}
+	// Once per second, every thread's recent cpu is updated
+	else {
+		if (!list_empty (&ready_list)) {
+			struct list_elem *e;
+			for (e=list_front (&ready_list); e!=list_end (&ready_list); e=list_next (e)) {
+				struct thread *t = list_entry (e, struct thread, elem);
+				// t->recent_cpu = (2*load_avg) / (2*load_avg+1) * (t->recent_cpu) + t->nice;
+				thread_update_recent_cpu (t);			
+			}
+		}
+
+		if (!list_empty (&sleep_list)) {
+			struct list_elem *e;
+			for (e=list_front (&sleep_list); e!=list_end (&sleep_list); e=list_next (e)) {
+				struct thread *t = list_entry (e, struct thread, elem);
+				// t->recent_cpu = (2*load_avg) / (2*load_avg+1) * (t->recent_cpu) + t->nice;
+				thread_update_recent_cpu (t);			
+			}
+		}
+
+		thread_update_recent_cpu (thread_current ());
+	}
+}
+
+void 
+thread_update_recent_cpu (struct thread *t) {
+	t->recent_cpu = add_x_and_n (mul_x_by_y (div_x_by_y (mul_x_by_n (load_avg, 2), add_x_and_n (mul_x_by_n (load_avg, 2), 1)), t->recent_cpu), t->nice);
+} 
+
+void
+recalculate_priority (void) {
+	// recalculate priority according to given rule
+	if (!list_empty (&ready_list)) {
+		struct list_elem *e;
+		for (e=list_front (&ready_list); e!=list_end (&ready_list); e=list_next (e)) {
+			struct thread *t = list_entry (e, struct thread, elem);
+			thread_recalculate_priority (t);
+		}
+	}
+
+	if (!list_empty (&sleep_list)) {
+		struct list_elem *e;
+		for (e=list_front (&sleep_list); e!=list_end (&sleep_list); e=list_next (e)) {
+			struct thread *t = list_entry (e, struct thread, elem);
+			thread_recalculate_priority (t);
+		}
+	}
+
+	thread_recalculate_priority (thread_current ());
+}
+
+void
+thread_recalculate_priority (struct thread *t) {
+	if (t != idle_thread)
+		t->priority = convert_x_to_int (mul_x_by_n (add_x_and_n (sub_n_from_x (div_x_by_n (t->recent_cpu, 4), PRI_MAX), t->nice*2), -1));
+}
+
+void
+recalculate_load_avg (void) {
+	// recalculate load_avg according to given rule
+	// load_avg = (59/60) * load_avg + (1/60) * ready_threads
+	int ready_threads = list_size (&ready_list);
+	if (thread_current () != idle_thread)
+		ready_threads += 1;
+	
+	load_avg = add_x_and_y (mul_x_by_y (div_x_by_y (convert_n_to_fp (59), convert_n_to_fp (60)), load_avg),
+							mul_x_by_n (div_x_by_y (convert_n_to_fp (1), convert_n_to_fp (60)), ready_threads));
+}
+
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) {
+thread_set_nice (int nice) {
 	/* TODO: Your implementation goes here */
+	enum intr_level old_level;
+	old_level = intr_disable ();
+
+	struct thread *curr = thread_current ();
+	curr->nice = nice;
+	thread_recalculate_priority (curr);
+	check_priority ();
+
+	intr_set_level (old_level);
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) {
 	/* TODO: Your implementation goes here */
-	return 0;
+	return thread_current ()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) {
 	/* TODO: Your implementation goes here */
-	return 0;
+	return convert_x_to_int_round (mul_x_by_n (load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) {
 	/* TODO: Your implementation goes here */
-	return 0;
+	return convert_x_to_int_round (mul_x_by_n (thread_current ()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -496,10 +592,19 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->status = THREAD_BLOCKED;
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
-	t->priority = priority;
-	t->original_priority = priority;
-	t->wait_on_lock = NULL;
-	list_init(&t->donations);
+	
+	if (thread_mlfqs) {
+		t->nice = NICE_DEFAULT;
+		t->recent_cpu = RECENT_CPU_DEFAULT;
+		thread_recalculate_priority (t);
+	}
+	else {
+		t->priority = priority;
+		t->original_priority = priority;
+		t->wait_on_lock = NULL;
+		list_init(&t->donations);
+	}
+
 	t->magic = THREAD_MAGIC;
 }
 

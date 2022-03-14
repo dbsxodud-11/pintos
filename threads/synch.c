@@ -194,39 +194,40 @@ lock_acquire (struct lock *lock) {
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
 
-	/* Donate Priority */
-	// if (lock->holder) 
-	// 	lock->holder->priority = thread_current ()->priority;
+	if (!thread_mlfqs) {
+		/* Donate Priority */
+		// if (lock->holder) 
+		// 	lock->holder->priority = thread_current ()->priority;
 
-	/* Donate Priority - add Nested Version */
-	struct thread *curr = thread_current ();
-	curr->wait_on_lock = lock;
-	
-	// if (lock->holder) {
-	// 	for (int i=0; i<DEPTH; i++) {
-	// 		if (curr->wait_on_lock) {
-	// 			curr->wait_on_lock->holder->priority = curr->priority;
-	// 			curr = curr->wait_on_lock->holder;
-	// 		}
-	// 		else break;
-	// 	}
-	// }
+		/* Donate Priority - add Nested Version */
+		struct thread *curr = thread_current ();
+		curr->wait_on_lock = lock;
+		
+		// if (lock->holder) {
+		// 	for (int i=0; i<DEPTH; i++) {
+		// 		if (curr->wait_on_lock) {
+		// 			curr->wait_on_lock->holder->priority = curr->priority;
+		// 			curr = curr->wait_on_lock->holder;
+		// 		}
+		// 		else break;
+		// 	}
+		// }
 
-	/* Donate Priority - add Multiple Version */
-	if (lock->holder) {
-		list_insert_ordered(&lock->holder->donations, &curr->donation_elem, thread_donation_priority_comparator, 0);
-		for (int i=0; i<DEPTH; i++) {
-			if (curr->wait_on_lock) {
-				curr->wait_on_lock->holder->priority = curr->priority;
-				curr = curr->wait_on_lock->holder;
+		/* Donate Priority - add Multiple Version */
+		if (lock->holder) {
+			list_insert_ordered(&lock->holder->donations, &curr->donation_elem, thread_donation_priority_comparator, 0);
+			for (int i=0; i<DEPTH; i++) {
+				if (curr->wait_on_lock) {
+					curr->wait_on_lock->holder->priority = curr->priority;
+					curr = curr->wait_on_lock->holder;
+				}
+				else break;
 			}
-			else break;
 		}
+
+		curr->wait_on_lock = NULL;
 	}
-
 	sema_down (&lock->semaphore);
-
-	curr->wait_on_lock = NULL;
 	lock->holder = thread_current ();
 }
 
@@ -261,23 +262,24 @@ lock_release (struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	lock->holder = NULL;
-
-	/* Donate Priority */
-	struct thread *curr = thread_current ();
-	// curr->priority = curr->original_priority;
 	
-	/* Donate Priority - add Multiple Version */
-	struct list_elem *e;
-	for (e = list_begin (&curr->donations); e != list_end (&curr->donations); e = list_next (e)) {
-		struct thread *donator = list_entry (e, struct thread, donation_elem);
-		if (donator->wait_on_lock == lock) {
-			list_remove (&donator->donation_elem);
+	if (!thread_mlfqs) {
+		/* Donate Priority */
+		struct thread *curr = thread_current ();
+		// curr->priority = curr->original_priority;
+		
+		/* Donate Priority - add Multiple Version */
+		struct list_elem *e;
+		for (e = list_begin (&curr->donations); e != list_end (&curr->donations); e = list_next (e)) {
+			struct thread *donator = list_entry (e, struct thread, donation_elem);
+			if (donator->wait_on_lock == lock) {
+				list_remove (&donator->donation_elem);
+			}
 		}
+
+		curr->priority = curr->original_priority;
+		check_donation ();
 	}
-
-	curr->priority = curr->original_priority;
-	check_donation ();
-
 	sema_up (&lock->semaphore);
 }
 
@@ -369,10 +371,11 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 	ASSERT (!intr_context ());
 	ASSERT (lock_held_by_current_thread (lock));
 
-	if (!list_empty (&cond->waiters))
+	if (!list_empty (&cond->waiters)) {
 		list_sort (&cond->waiters, sema_priority_comparator, 0);
 		sema_up (&list_entry (list_pop_front (&cond->waiters),
 					struct semaphore_elem, elem)->semaphore);
+	}
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by

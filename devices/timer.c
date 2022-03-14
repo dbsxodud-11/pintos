@@ -128,6 +128,20 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
+
+	/* For Advanced Scheduler */
+	if (thread_mlfqs) {
+		// On each timer tick, the running thread's recent cpu is incremented by 1. 
+		update_recent_cpu (true);
+		if (ticks % 4 == 0) {
+			recalculate_priority (); // recalculate priority according to given rule
+		}
+		if (ticks % TIMER_FREQ == 0) {
+			recalculate_load_avg (); // recalculate load_avg according to given rule
+			update_recent_cpu (false); // Once per second, every thread's recent cpu is updated
+		}
+	}
+
 	thread_awake (ticks);
 }
 
