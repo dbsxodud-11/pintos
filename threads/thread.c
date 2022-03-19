@@ -287,9 +287,8 @@ thread_unblock (struct thread *t) {
 	// list_push_back (&ready_list, &t->elem);
 	list_insert_ordered (&ready_list, &t->elem, thread_priority_comparator, 0);
 	t->status = THREAD_READY;
-
-	struct thread *curr = thread_current ();
-	if (curr != idle_thread)
+ 
+	if (thread_current () != idle_thread)
 		check_priority ();
 	intr_set_level (old_level);
 }
