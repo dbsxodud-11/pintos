@@ -336,8 +336,20 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	process_activate (thread_current ());
 
+	/* 1. Break the command into words */
+	int argc = 0;
+	char *argv[128];
+	char *save_ptr;
+
+	char *argument = strtok_r (file_name, " ", &save_ptr);
+	argv[0] = argument;
+	while (argument != NULL) {
+		argument = strtok_r (NULL, " ", &save_ptr);
+		argv[++argc] = argument;
+	}
+
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	file = filesys_open (argv[0]);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
@@ -418,25 +430,27 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
 
-	// 1. Break the command into words
-	int argc = 0;
-	char *argv[128];
+	// // 1. Break the command into words
+	// int argc = 0;
+	// char *argv[128];
 
-	char *save_ptr;
-	char *real_file_name = strtok_r (file_name, " ", &save_ptr);
-	argv[0] = real_file_name;
+	// char *save_ptr;
+	// char *real_file_name = strtok_r (file_name, " ", &save_ptr);
+	// argv[0] = real_file_name;
 
-	char *argument;
-	do {
-		argument = strtok_r (NULL, " ", &save_ptr);
-		argv[++argc] = argument;
-	} while (argument != NULL);
+	// char *argument;
+	// do {
+	// 	argument = strtok_r (NULL, " ", &save_ptr);
+	// 	argv[++argc] = argument;
+	// } while (argument != NULL);
 
 	// 2. Place the words at the top of the stack
+	char *save_address[128];
 	for (int i=0; i<argc; i++) {
 		int address_space = strlen(argv[argc-i-1]) + 1;
 		if_->rsp -= address_space;
 		memcpy (if_->rsp, argv[argc-i-1], address_space);
+		save_address[argc-i-1] = if_->rsp;
 	}
 
 	// Padding for Word-Align
@@ -450,7 +464,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	memset (if_->rsp, 0, sizeof(char **));
 	for (int i=0; i<argc; i++) {
 		if_->rsp -= 8;
-		memcpy (if_->rsp, &argv[argc-i-1], sizeof(char **));
+		memcpy (if_->rsp, &save_address[argc-i-1], sizeof(char **));
 	}
 
 	// 4. Point %rsi to argv and set %rdi to argc
@@ -460,6 +474,9 @@ load (const char *file_name, struct intr_frame *if_) {
 	// 5. push a fake "return" address
 	if_->rsp -= 8;
 	memset (if_->rsp, 0, sizeof(void *));
+
+	hex_dump (if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
+	ASSERT(0);
 
 	success = true;
 
