@@ -204,6 +204,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	while(1) {}
 	return -1;
 }
 
@@ -416,6 +417,49 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+
+	// 1. Break the command into words
+	int argc = 0;
+	char *argv[128];
+
+	char *save_ptr;
+	char *real_file_name = strtok_r (file_name, " ", &save_ptr);
+	argv[0] = real_file_name;
+
+	char *argument;
+	do {
+		argument = strtok_r (NULL, " ", &save_ptr);
+		argv[++argc] = argument;
+	} while (argument != NULL);
+
+	// 2. Place the words at the top of the stack
+	for (int i=0; i<argc; i++) {
+		int address_space = strlen(argv[argc-i-1]) + 1;
+		if_->rsp -= address_space;
+		memcpy (if_->rsp, argv[argc-i-1], address_space);
+	}
+
+	// Padding for Word-Align
+	while (if_->rsp % 8 != 0) {
+		if_->rsp -= 1;
+		*(uint8_t *)(if_->rsp) = 0;
+	}
+
+	// 3. Push the address of each string plus a null pointer sentinel
+	if_->rsp -= 8;
+	memset (if_->rsp, 0, sizeof(char **));
+	for (int i=0; i<argc; i++) {
+		if_->rsp -= 8;
+		memcpy (if_->rsp, &argv[argc-i-1], sizeof(char **));
+	}
+
+	// 4. Point %rsi to argv and set %rdi to argc
+	if_->R.rsi = if_->rsp;
+	if_->R.rdi = argc;
+
+	// 5. push a fake "return" address
+	if_->rsp -= 8;
+	memset (if_->rsp, 0, sizeof(void *));
 
 	success = true;
 
