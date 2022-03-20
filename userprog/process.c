@@ -225,6 +225,8 @@ process_exit (void) {
 	 * TODO: We recommend you to implement process resource cleanup here. */
 	
 	sema_up (&curr->wait_sema);
+	/* Process Termination Message */
+	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 
 	process_cleanup ();
 }

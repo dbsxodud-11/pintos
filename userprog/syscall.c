@@ -43,10 +43,20 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	printf ("system call: %d\n", f->R.rax);
 	switch (f->R.rax) {
+		case SYS_EXIT:
+			exit(f->R.rdi);
+			break;
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
 	}
+}
+
+/* Exit: Terminates the current user program, returning status to the kernel */
+void 
+exit (int status) {
+	struct thread *curr = thread_current ();
+	curr->exit_status = status;
 	thread_exit ();
 }
 
