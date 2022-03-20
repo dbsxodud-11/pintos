@@ -250,7 +250,8 @@ thread_create (const char *name, int priority,
 	thread_unblock (t);
 	/* priority can be changed by thread_func function */
 	check_priority ();
-
+	/* Add to child list */
+	list_push_back (&thread_current ()->children, &t->child_elem);
 	return tid;
 }
 
@@ -608,6 +609,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 		list_init(&t->donations);
 	}
 
+	list_init (&t->children);
+	sema_init (&t->wait_sema, 0);
+
 	t->magic = THREAD_MAGIC;
 }
 
@@ -787,4 +791,19 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+/* Returns a child thread with tid */
+struct thread *
+get_child_thread_with_tid (tid_t tid) {
+	struct thread *curr = thread_current ();
+	if (!list_empty (&curr->children)) {
+		struct list_elem *e;
+		for (e=list_front (&curr->children); e!=list_end (&curr->children); e=list_next (e)) {
+			struct thread *child_thread = list_entry (e, struct thread , child_elem);
+			if (child_thread->tid == tid)
+				return child_thread;
+		}
+	}
+	return NULL;
 }

@@ -200,12 +200,19 @@ process_exec (void *f_name) {
  * This function will be implemented in problem 2-2.  For now, it
  * does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) {
+process_wait (tid_t child_tid) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	while(1) {}
-	return -1;
+	struct thread *child_thread = get_child_thread_with_tid (child_tid);
+	if (child_thread != NULL) {
+		sema_down (&child_thread->wait_sema); // waits until it terminates
+		list_remove (&child_thread->child_elem);
+
+		return child_thread->exit_status; 
+	}
+	else
+		return -1;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -216,6 +223,8 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+	
+	sema_up (&curr->wait_sema);
 
 	process_cleanup ();
 }
@@ -475,8 +484,8 @@ load (const char *file_name, struct intr_frame *if_) {
 	if_->rsp -= 8;
 	memset (if_->rsp, 0, sizeof(void *));
 
-	hex_dump (if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
-	ASSERT(0);
+	// hex_dump (if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
+	// ASSERT(0);
 
 	success = true;
 
