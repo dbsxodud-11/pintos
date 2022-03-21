@@ -41,11 +41,13 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	printf ("system call: %d\n", f->R.rax);
+	// printf ("system call: %d\n", f->R.rax);
 	switch (f->R.rax) {
 		case SYS_EXIT:
 			exit(f->R.rdi);
 			break;
+		case SYS_EXEC:
+			exec(f->R.rdi);
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
@@ -58,6 +60,15 @@ exit (int status) {
 	struct thread *curr = thread_current ();
 	curr->exit_status = status;
 	thread_exit ();
+}
+
+/*Exec: Change current process to the executable whose name is given in cmd_line, passing any given arguments. */
+int
+exec (const char *cmd_line) {
+	// printf("%p\n", cmd_line);
+	process_exec (cmd_line);
+	ASSERT(0);
+	exit(-1);
 }
 
 /* Write */

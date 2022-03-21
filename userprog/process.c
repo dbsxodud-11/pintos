@@ -50,8 +50,11 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+	char *save_ptr;
+	char *real_file_name = strtok_r (file_name, " ", &save_ptr);
+
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	tid = thread_create (real_file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -163,6 +166,9 @@ error:
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
+	char *file_name_copy[128];
+	memcpy (file_name_copy, file_name, strlen(file_name)+1);
+
 	bool success;
 
 	/* We cannot use the intr_frame in the thread structure.
@@ -177,7 +183,7 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
 	/* And then load the binary */
-	success = load (file_name, &_if);
+	success = load (file_name_copy, &_if);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -349,7 +355,8 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* 1. Break the command into words */
 	int argc = 0;
-	char *argv[128];
+	char *argv[16];
+	char *argv_address[16];
 	char *save_ptr;
 
 	char *argument = strtok_r (file_name, " ", &save_ptr);
@@ -456,13 +463,15 @@ load (const char *file_name, struct intr_frame *if_) {
 	// } while (argument != NULL);
 
 	// 2. Place the words at the top of the stack
-	char *save_address[128];
 	for (int i=0; i<argc; i++) {
 		int address_space = strlen(argv[argc-i-1]) + 1;
 		if_->rsp -= address_space;
 		memcpy (if_->rsp, argv[argc-i-1], address_space);
-		save_address[argc-i-1] = if_->rsp;
+		argv_address[argc-i-1] = if_->rsp;
 	}
+
+	// hex_dump (if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
+	// ASSERT(0);
 
 	// Padding for Word-Align
 	while (if_->rsp % 8 != 0) {
@@ -470,13 +479,19 @@ load (const char *file_name, struct intr_frame *if_) {
 		*(uint8_t *)(if_->rsp) = 0;
 	}
 
+	// hex_dump (if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
+	// ASSERT(0);
+
 	// 3. Push the address of each string plus a null pointer sentinel
 	if_->rsp -= 8;
-	memset (if_->rsp, 0, sizeof(char **));
+	memset (if_->rsp, 0, 8);
 	for (int i=0; i<argc; i++) {
 		if_->rsp -= 8;
-		memcpy (if_->rsp, &save_address[argc-i-1], sizeof(char **));
+		memcpy (if_->rsp, &argv_address[argc-i-1], 8);
 	}
+
+	// hex_dump (if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
+	// ASSERT(0);
 
 	// 4. Point %rsi to argv and set %rdi to argc
 	if_->R.rsi = if_->rsp;
