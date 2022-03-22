@@ -355,8 +355,8 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* 1. Break the command into words */
 	int argc = 0;
-	char *argv[16];
-	char *argv_address[16];
+	char *argv[24];
+	char *argv_address[24];
 	char *save_ptr;
 
 	char *argument = strtok_r (file_name, " ", &save_ptr);
