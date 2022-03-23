@@ -53,6 +53,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_REMOVE:
 			f->R.rax = remove(f->R.rdi);
 			break;
+		case SYS_READ:
+			break;
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
