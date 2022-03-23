@@ -166,8 +166,7 @@ error:
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
-	char *file_name_copy[128];
-	memcpy (file_name_copy, file_name, strlen(file_name)+1);
+
 
 	bool success;
 
@@ -183,7 +182,7 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
 	/* And then load the binary */
-	success = load (file_name_copy, &_if);
+	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -230,7 +229,7 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 	
-	sema_up (&curr->wait_sema);
+	// sema_up (&curr->wait_sema);
 	/* Process Termination Message */
 	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 

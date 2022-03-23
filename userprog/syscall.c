@@ -1,5 +1,6 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
+#include <stdbool.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -46,6 +47,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_EXIT:
 			exit(f->R.rdi);
 			break;
+		case SYS_CREATE:
+			f->R.rax = create(f->R.rdi, f->R.rsi);
+			break;
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
@@ -60,8 +64,18 @@ exit (int status) {
 	thread_exit ();
 }
 
+bool
+create (const char *file_name, unsigned initial_size) {
+	if (file_name == NULL) {
+		exit(-1);
+		NOT_REACHED();
+	}
+	return filesys_create (file_name, initial_size);
+}
+
 /* Write */
-int write (int fd, const void *buffer, unsigned length) {
+int 
+write (int fd, const void *buffer, unsigned length) {
 	putbuf (buffer, length);
 	return length;
 }
