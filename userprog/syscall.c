@@ -50,6 +50,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CREATE:
 			f->R.rax = create(f->R.rdi, f->R.rsi);
 			break;
+		case SYS_REMOVE:
+			f->R.rax = remove(f->R.rdi);
+			break;
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
@@ -71,6 +74,15 @@ create (const char *file_name, unsigned initial_size) {
 		NOT_REACHED();
 	}
 	return filesys_create (file_name, initial_size);
+}
+
+bool
+remove (const char *file_name) {
+	if (file_name == NULL) {
+		exit(-1);
+		NOT_REACHED();
+	}
+	return filesys_remove (file_name);
 }
 
 /* Write */
