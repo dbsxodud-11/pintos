@@ -222,8 +222,7 @@ process_exit (void) {
 	 * TODO: We recommend you to implement process resource cleanup here. */
 	
 	/* Process Termination Message */
-	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
-
+	// printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	process_cleanup ();
 }
 
