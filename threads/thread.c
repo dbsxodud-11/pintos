@@ -250,8 +250,7 @@ thread_create (const char *name, int priority,
 	thread_unblock (t);
 	/* priority can be changed by thread_func function */
 	check_priority ();
-	/* Add to child list */
-	list_push_back (&thread_current ()->children, &t->child_elem);
+
 	return tid;
 }
 
@@ -609,8 +608,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 		list_init(&t->donations);
 	}
 
-	list_init (&t->children);
-	sema_init (&t->wait_sema, 0);
+	list_init(&t->children);
 
 	t->magic = THREAD_MAGIC;
 }

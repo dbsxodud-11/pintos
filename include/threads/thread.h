@@ -126,8 +126,6 @@ struct thread {
 	struct list children;
 	struct list_elem child_elem;
 
-	struct semaphore *wait_sema;
-
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */

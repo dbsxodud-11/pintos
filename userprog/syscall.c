@@ -1,10 +1,12 @@
 #include "userprog/syscall.h"
+#include "userprog/process.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/loader.h"
+#include "threads/palloc.h"
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
@@ -47,6 +49,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_EXIT:
 			exit(f->R.rdi);
 			break;
+		case SYS_EXEC:
+			exec(f->R.rdi);
+			break;
 		case SYS_CREATE:
 			f->R.rax = create(f->R.rdi, f->R.rsi);
 			break;
@@ -65,6 +70,22 @@ exit (int status) {
 	struct thread *curr = thread_current ();
 	curr->exit_status = status;
 	thread_exit ();
+}
+
+void
+exec (const char *cmd_line) {
+	char *cmd_line_copy;
+	tid_t tid;
+
+	/* Make a copy of FILE_NAME.
+	 * Otherwise there's a race between the caller and load(). */
+	cmd_line_copy = palloc_get_page (0);
+	if (cmd_line_copy == NULL)
+		return TID_ERROR;
+	strlcpy (cmd_line_copy, cmd_line, PGSIZE);
+
+	if (process_exec (cmd_line_copy) == -1)
+		exit(-1);
 }
 
 bool
