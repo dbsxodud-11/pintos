@@ -11,6 +11,7 @@
 #include "threads/flags.h"
 #include "intrinsic.h"
 #include "filesys/filesys.h"
+#include "threads/mmu.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -79,6 +80,7 @@ exit (int status) {
 
 void
 exec (const char *cmd_line) {
+	check_address (cmd_line);
 	char *cmd_line_copy;
 	tid_t tid;
 
@@ -95,19 +97,13 @@ exec (const char *cmd_line) {
 
 bool
 create (const char *file_name, unsigned initial_size) {
-	if (file_name == NULL) {
-		exit(-1);
-		NOT_REACHED();
-	}
+	check_address (file_name);
 	return filesys_create (file_name, initial_size);
 }
 
 bool
 remove (const char *file_name) {
-	if (file_name == NULL) {
-		exit(-1);
-		NOT_REACHED();
-	}
+	check_address (file_name);
 	return filesys_remove (file_name);
 }
 
@@ -123,6 +119,7 @@ remove (const char *file_name) {
 
 int
 open (const char *file_name) {
+	check_address (file_name);
 	struct file *file = filesys_open (file_name);
 	if (file == NULL)
 		return -1;
@@ -138,4 +135,15 @@ int
 write (int fd, const void *buffer, unsigned length) {
 	putbuf (buffer, length);
 	return length;
+}
+
+
+/* Check Address is valid */
+void
+check_address (void *addr) {
+	// printf("%d\n", is_kernel_vaddr (addr));
+	if ((addr == NULL) || (is_kernel_vaddr (addr))) //null pointer or pointer to kernel address space
+		exit(-1);
+	if (pml4_get_page (thread_current ()->pml4, addr) == NULL) // page fault case
+		exit(-1);
 }

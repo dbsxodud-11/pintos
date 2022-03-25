@@ -12,4 +12,6 @@ bool remove (const char *file_name);
 int open (const char *file_name);
 int write (int fd, const void *buffer, unsigned length);
 
+void check_address (void *addr);
+
 #endif /* userprog/syscall.h */
