@@ -125,7 +125,7 @@ open (const char *file_name) {
 		return -1;
 		
 	struct thread *curr = thread_current ();
-	list_push_back (&curr->files, &curr->file_elem);
+	curr->files[curr->fd] = file;
 	return curr->fd++;
 }
 
