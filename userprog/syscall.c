@@ -10,6 +10,7 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/mmu.h"
 
@@ -62,6 +63,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_OPEN:
 			f->R.rax = open(f->R.rdi);
+			break;
+		case SYS_FILESIZE:
+			f->R.rax = filesize(f->R.rdi);
 			break;
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
@@ -129,6 +133,15 @@ open (const char *file_name) {
 	return curr->fd++;
 }
 
+/* filesize: Returns the size, in bytes, of the file open as fd. */
+int
+filesize (int fd) {
+	if (fd < 3)
+		return NULL;
+	struct file *file = get_file_with_fd (fd);
+	return file_length (file);
+}
+
 /* Write */
 int 
 write (int fd, const void *buffer, unsigned length) {
@@ -145,4 +158,12 @@ check_address (void *addr) {
 		exit(-1);
 	if (pml4_get_page (thread_current ()->pml4, addr) == NULL) // page fault case
 		exit(-1);
+}
+
+/* Get file with file descriptor */
+struct file *
+get_file_with_fd (int fd) {
+	if (fd < 3)
+		return NULL;
+	return thread_current ()->files[fd];
 }
