@@ -126,7 +126,8 @@ struct thread {
 	struct list children;
 	struct list_elem child_elem;
 
-	struct file *file_list[128];
+	struct list files;
+	struct list_elem file_elem;
 	int fd;
 
 #endif

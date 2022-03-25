@@ -123,10 +123,9 @@ open (const char *file_name) {
 	struct file *file = filesys_open (file_name);
 	if (file == NULL)
 		return -1;
+		
 	struct thread *curr = thread_current ();
-	struct file **file_list = curr->file_list;
-
-	file_list[curr->fd] = file;
+	list_push_back (&curr->files, &curr->file_elem);
 	return curr->fd++;
 }
 
