@@ -1,3 +1,4 @@
+#include "devices/input.h"
 #include "userprog/syscall.h"
 #include "userprog/process.h"
 #include <stdio.h>
@@ -66,6 +67,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_FILESIZE:
 			f->R.rax = filesize(f->R.rdi);
+			break;
+		case SYS_READ:
+			f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
@@ -142,11 +146,81 @@ filesize (int fd) {
 	return file_length (file);
 }
 
-/* Write */
+/* read: Reads size bytes from the file open as fd into buffer. Returns 
+the number of bytes actually read (0 at end of file), or -1 if the file 
+could not be read (due to a condition other than end of file). fd 0 reads 
+from the keyboard using input_getc() */
+int
+read (int fd, void *buffer, unsigned size) {
+	check_address (buffer);
+	struct file *file = get_file_with_fd (fd);
+	if (file == NULL)
+		return -1;
+	
+	// STDIN
+	int bytes_read = 0;
+	if (fd == 0) {
+		char *char_buffer = (char *)buffer;
+		while (bytes_read < size) {
+			char_buffer = input_getc ();
+			*char_buffer++;
+			bytes_read++;
+			if (char_buffer == "\0") {
+				break;
+			}
+		}
+	}
+	//STDOUT
+	else if (fd == 1) {
+		bytes_read = -1;
+	}
+	//STDERR
+	else if (fd == 2) {
+		bytes_read = -1;
+	}
+	else {
+		bytes_read = file_read (file, buffer, size);
+	}
+	return bytes_read;
+}
+
+/* write: Writes size bytes from buffer to the open file fd. Returns the number 
+of bytes actually written, which may be less than size if some bytes could not 
+be written. Writing past end-of-file would normally extend the file, but file 
+growth is not implemented by the basic file system. The expected behavior is to 
+write as many bytes as possible up to end-of-file and return the actual number
+written, or 0 if no bytes could be written at all. fd 1 writes to the console. 
+Your code to write to the console should write all of buffer in one call to 
+putbuf(), at least as long as size is not bigger than a few hundred bytes (It 
+is reasonable to break up larger buffers). Otherwise, lines of text output by 
+different processes may end up interleaved on the console, confusing both human 
+readers and our grading scripts. */
+
 int 
-write (int fd, const void *buffer, unsigned length) {
-	putbuf (buffer, length);
-	return length;
+write (int fd, void *buffer, unsigned size) {
+	check_address (buffer);
+	struct file *file = get_file_with_fd (fd);
+	if (file == NULL)
+		return -1;
+	
+	// STDIN
+	int bytes_written = 0;
+	if (fd == 0) {
+		bytes_written = 0;
+	}
+	//STDOUT
+	else if (fd == 1) {
+		putbuf (buffer, size);
+		bytes_written = size;
+	}
+	//STDERR
+	else if (fd == 2) {
+		bytes_written = -1;
+	}
+	else {
+		bytes_written = file_write (file, buffer, size);
+	}
+	return bytes_written;
 }
 
 
@@ -163,7 +237,7 @@ check_address (void *addr) {
 /* Get file with file descriptor */
 struct file *
 get_file_with_fd (int fd) {
-	if (fd < 3)
+	if (fd < 0 || fd > 128)
 		return NULL;
 	return thread_current ()->files[fd];
 }
