@@ -10,6 +10,7 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#include "filesys/filesys.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -58,6 +59,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_REMOVE:
 			f->R.rax = remove(f->R.rdi);
 			break;
+		case SYS_OPEN:
+			f->R.rax = open(f->R.rdi);
+			break;
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
@@ -105,6 +109,28 @@ remove (const char *file_name) {
 		NOT_REACHED();
 	}
 	return filesys_remove (file_name);
+}
+
+/* open: Opens the file called file. Returns a nonnegative integer handle called a "file descriptor" (fd),
+ or -1 if the file could not be opened. File descriptors numbered 0 and 1 are reserved for the console: 
+ fd 0 (STDIN_FILENO) is standard input, fd 1 (STDOUT_FILENO) is standard output. The open system call will 
+ never return either of these file descriptors, which are valid as system call arguments only as explicitly 
+ described below. Each process has an independent set of file descriptors. File descriptors are inherited 
+ by child processes. When a single file is opened more than once, whether by a single process or different 
+ processes, each open returns a new file descriptor. Different file descriptors for a single file are closed
+ independently in separate calls to close and they do not share a file position. You should follow the linux
+ scheme, which returns integer starting from zero, to do the extra. */
+
+int
+open (const char *file_name) {
+	struct file *file = filesys_open (file_name);
+	if (file == NULL)
+		return -1;
+	struct thread *curr = thread_current ();
+	struct file **file_list = curr->file_list;
+
+	file_list[curr->fd] = file;
+	return curr->fd++;
 }
 
 /* Write */

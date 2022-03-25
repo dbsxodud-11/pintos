@@ -126,6 +126,9 @@ struct thread {
 	struct list children;
 	struct list_elem child_elem;
 
+	struct file *file_list[128];
+	int fd;
+
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
