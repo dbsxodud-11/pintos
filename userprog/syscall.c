@@ -50,11 +50,19 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	// printf ("system call: %d\n", f->R.rax);
 	switch (f->R.rax) {
+		case SYS_HALT:
+			power_off ();
 		case SYS_EXIT:
 			exit(f->R.rdi);
 			break;
+		case SYS_FORK:
+			f->R.rax = fork(f->R.rdi, f);
+			break;
 		case SYS_EXEC:
 			exec(f->R.rdi);
+			break;
+		case SYS_WAIT:
+			f->R.rax = wait(f->R.rdi);
 			break;
 		case SYS_CREATE:
 			f->R.rax = create(f->R.rdi, f->R.rsi);
@@ -74,6 +82,18 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
+		case SYS_SEEK:
+			seek(f->R.rdi, f->R.rsi);
+			break;
+		case SYS_TELL:
+			f->R.rax = tell(f->R.rdi);
+			break;
+		case SYS_CLOSE:
+			close(f->R.rdi);
+			break;
+		default:
+			exit(-1);
+			break;
 	}
 }
 
@@ -84,6 +104,11 @@ exit (int status) {
 	curr->exit_status = status;
 	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	thread_exit ();
+}
+
+tid_t
+fork (const char *thread_name, struct intr_frame *if_) {
+	return -1;
 }
 
 void
@@ -101,6 +126,11 @@ exec (const char *cmd_line) {
 
 	if (process_exec (cmd_line_copy) == -1)
 		exit(-1);
+}
+
+int
+wait (tid_t tid) {
+	return -1;
 }
 
 bool
@@ -223,6 +253,32 @@ write (int fd, void *buffer, unsigned size) {
 	return bytes_written;
 }
 
+void
+seek (int fd, unsigned position) {
+	struct file *file = get_file_with_fd (fd);
+	if ((file == NULL) || (fd < 3))
+		return NULL;
+	file_seek (file, position);
+}
+
+unsigned
+tell (int fd) {
+	struct file *file = get_file_with_fd (fd);
+	if ((file == NULL) || (fd < 3))
+		return NULL;
+	return file_tell (file);
+}
+
+void
+close (int fd) {
+	struct file *file = get_file_with_fd (fd);
+	if (file == NULL)
+		return NULL;
+	if (fd < 3)
+		return NULL;
+	else
+		file_close (file);
+}
 
 /* Check Address is valid */
 void
@@ -240,4 +296,33 @@ get_file_with_fd (int fd) {
 	if (fd < 0 || fd > 128)
 		return NULL;
 	return thread_current ()->files[fd];
+}
+
+/* Reads a byte at user virtual address UADDR.
+ * UADDR must be below KERN_BASE.
+ * Returns the byte value if successful, -1 if a segfault
+ * occurred. */
+static int64_t
+get_user (const uint8_t *uaddr) {
+    int64_t result;
+    __asm __volatile (
+    "movabsq $done_get, %0\n"
+    "movzbq %1, %0\n"
+    "done_get:\n"
+    : "=&a" (result) : "m" (*uaddr));
+    return result;
+}
+
+/* Writes BYTE to user address UDST.
+ * UDST must be below KERN_BASE.
+ * Returns true if successful, false if a segfault occurred. */
+static bool
+put_user (uint8_t *udst, uint8_t byte) {
+    int64_t error_code;
+    __asm __volatile (
+    "movabsq $done_put, %0\n"
+    "movb %b2, %1\n"
+    "done_put:\n"
+    : "=&a" (error_code), "=m" (*udst) : "q" (byte));
+    return error_code != -1;
 }
