@@ -108,7 +108,13 @@ exit (int status) {
 
 tid_t
 fork (const char *thread_name, struct intr_frame *if_) {
-	return -1;
+	struct thread *curr = thread_current ();
+	memcpy (&curr->parent_if, if_, sizeof (struct intr_frame));
+
+	tid_t child_tid = process_fork (thread_name, if_);
+	if (child_tid == TID_ERROR)
+		return TID_ERROR;
+	return child_tid;
 }
 
 void
@@ -130,7 +136,11 @@ exec (const char *cmd_line) {
 
 int
 wait (tid_t tid) {
-	return -1;
+	struct thread *child_thread = get_child_thread_with_tid (tid);
+	int status = child_thread->exit_status;
+	sema_down (&child_thread->sema[2]);
+	sema_up (&child_thread->sema[1]);
+	return status;
 }
 
 bool

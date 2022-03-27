@@ -79,8 +79,14 @@ initd (void *f_name) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+	struct thread *curr = thread_current ();
+	memcpy (&curr->parent_if, if_, sizeof (struct intr_frame));
+
+	tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, curr);
+
+	struct thread *child_thread = get_child_thread_with_tid (child_tid);
+	sema_down (&child_thread->sema[0]);
+	return child_tid;
 }
 
 #ifndef VM
@@ -95,16 +101,21 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
+	if (is_kernel_vaddr (va))
+		return true;
 
 	/* 2. Resolve VA from the parent's page map level 4. */
 	parent_page = pml4_get_page (parent->pml4, va);
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
+	newpage = palloc_get_page (PAL_USER);
 
 	/* 4. TODO: Duplicate parent's page to the new page and
 	 *    TODO: check whether parent's page is writable or not (set WRITABLE
 	 *    TODO: according to the result). */
+	memcpy (newpage, parent_page, PGSIZE);
+	writable = is_writable (pte);
 
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
@@ -125,7 +136,7 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	struct intr_frame *parent_if = &parent->parent_if;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
@@ -153,10 +164,12 @@ __do_fork (void *aux) {
 	 * TODO:       the resources of parent.*/
 
 	process_init ();
-
+	sema_up (&current->sema[0]);
 	/* Finally, switch to the newly created process. */
-	if (succ)
+	if (succ) {
+		if_.R.rax = 0; // child process return 0
 		do_iret (&if_);
+	}
 error:
 	thread_exit ();
 }
@@ -222,6 +235,8 @@ process_exit (void) {
 	 * TODO: We recommend you to implement process resource cleanup here. */
 	
 	/* Process Termination Message */
+	sema_up (&curr->sema[2]);
+	sema_down (&curr->sema[1]);
 	// printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	process_cleanup ();
 }

@@ -250,6 +250,8 @@ thread_create (const char *name, int priority,
 	thread_unblock (t);
 	/* priority can be changed by thread_func function */
 	check_priority ();
+	/* Add to child list */
+	list_push_back (&thread_current ()->children, &t->child_elem);
 
 	return tid;
 }
@@ -609,7 +611,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	}
 
 	list_init(&t->children);
-	
+	for (int i=0; i<3; i++)
+		sema_init(&t->sema[i], 0);
+
 	char *fd_0 = "STDIN_FILENO";
 	char *fd_1 = "STDOUT_FILENO";
 	char *fd_2 = "STDERR";

@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 #include "threads/interrupt.h"
 #ifdef VM
 #include "vm/vm.h"
@@ -128,6 +129,9 @@ struct thread {
 
 	struct file *files[128];
 	int fd;
+
+	struct intr_frame parent_if;
+	struct semaphore sema[3]; // one for fork, one for exit, one for wait
 
 #endif
 #ifdef VM
