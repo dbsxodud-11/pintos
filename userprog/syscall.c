@@ -65,7 +65,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			f->R.rax = wait(f->R.rdi);
 			break;
 		case SYS_CREATE:
-			f->R.rax = create(f->R.rdi, f->R.rsi);
+			f->R.rax = (int) create(f->R.rdi, f->R.rsi);
 			break;
 		case SYS_REMOVE:
 			f->R.rax = remove(f->R.rdi);
