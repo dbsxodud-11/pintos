@@ -18,6 +18,8 @@
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
+struct lock syscall_lock;
+
 /* System call.
  *
  * Previously system call services was handled by the interrupt handler
@@ -42,6 +44,7 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+	lock_init (&syscall_lock);
 }
 
 /* The main system call interface */
@@ -151,7 +154,10 @@ wait (tid_t tid) {
 bool
 create (const char *file_name, unsigned initial_size) {
 	check_address (file_name);
-	return filesys_create (file_name, initial_size);
+	lock_acquire (&syscall_lock);
+	bool result = filesys_create (file_name, initial_size);
+	lock_release (&syscall_lock);
+	return result;
 }
 
 bool
@@ -259,7 +265,9 @@ write (int fd, void *buffer, unsigned size) {
 	}
 	//STDOUT
 	else if (fd == 1) {
+		lock_acquire (&syscall_lock);
 		putbuf (buffer, size);
+		lock_release (&syscall_lock);
 		bytes_written = size;
 	}
 	//STDERR
