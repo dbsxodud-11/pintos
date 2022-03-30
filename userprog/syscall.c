@@ -291,8 +291,10 @@ close (int fd) {
 		return NULL;
 	if (fd < 3)
 		return NULL;
-	else
+	else {
 		file_close (file);
+		thread_current ()->files[fd] = NULL;
+	}
 }
 
 /* Check Address is valid */
