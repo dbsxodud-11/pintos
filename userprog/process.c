@@ -163,6 +163,14 @@ __do_fork (void *aux) {
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
 
+	for (int i=3; i<parent->fd; i++) {
+		struct file *file = parent->files[i];
+		if (file == NULL)
+			continue;
+		current->files[i] = file_duplicate (file);
+	}
+	current->fd = parent->fd;
+
 	process_init ();
 	sema_up (&current->sema[0]);
 	/* Finally, switch to the newly created process. */
