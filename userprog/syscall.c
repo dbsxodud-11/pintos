@@ -175,8 +175,9 @@ open (const char *file_name) {
 	check_address (file_name);
 	struct file *file = filesys_open (file_name);
 	if (file == NULL)
-		return -1;
-		
+		return -1;	
+	file_deny_write (file);
+
 	struct thread *curr = thread_current ();
 	curr->files[curr->fd] = file;
 	return curr->fd++;
@@ -273,6 +274,7 @@ seek (int fd, unsigned position) {
 	struct file *file = get_file_with_fd (fd);
 	if ((file == NULL) || (fd < 3))
 		return NULL;
+	file_allow_write (file);
 	file_seek (file, position);
 }
 
