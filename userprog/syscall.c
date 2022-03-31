@@ -139,16 +139,17 @@ exec (const char *cmd_line) {
 
 int
 wait (tid_t tid) {
-	struct thread *child_thread = get_child_thread_with_tid (tid);
-	if (child_thread == NULL)
-		return -1;
+	// struct thread *child_thread = get_child_thread_with_tid (tid);
+	// if (child_thread == NULL)
+	// 	return -1;
 
-	sema_down (&child_thread->sema[2]);
-	int status = child_thread->exit_status;
+	// sema_down (&child_thread->sema[2]);
+	// int status = child_thread->exit_status;
 
-	sema_up (&child_thread->sema[1]);
-	list_remove (&child_thread->child_elem);
-	return status;
+	// sema_up (&child_thread->sema[1]);
+	// list_remove (&child_thread->child_elem);
+	// return status;
+	return process_wait (tid);
 }
 
 bool
