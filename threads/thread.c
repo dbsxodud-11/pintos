@@ -616,16 +616,13 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	char *fd_0 = "STDIN_FILENO";
 	char *fd_1 = "STDOUT_FILENO";
-	char *fd_2 = "STDERR";
 
-	t->files[0] = (struct file *)fd_0;
-	t->files[1] = (struct file *)fd_1;
-	t->files[2] = (struct file *)fd_2;
+	t->file_desc[0] = (struct file *)fd_0;
+	t->file_desc[1] = (struct file *)fd_1;
 	
-	for (int i=3; i<128; i++) {
-		t->files[i] = NULL;
+	for (int i=2; i<128; i++) {
+		t->file_desc[i] = NULL;
 	}
-	t->fd = 3;
 
 	t->magic = THREAD_MAGIC;
 }

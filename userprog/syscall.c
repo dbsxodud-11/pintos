@@ -103,6 +103,15 @@ exit (int status) {
 	struct thread *curr = thread_current ();
 	curr->exit_status = status;
 	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
+
+	for (int i=3; i<128; i++) {
+		if (curr->file_desc[i] == NULL)
+			continue;
+		else {
+			file_close (curr->file_desc[i]);
+		}
+	}
+
 	thread_exit ();
 }
 
@@ -178,20 +187,30 @@ open (const char *file_name) {
 	struct file *file = filesys_open (file_name);
 	if (file == NULL)
 		return -1;	
-
+	
+	int fd;
 	struct thread *curr = thread_current ();
-	curr->files[curr->fd] = file;
+	// curr->file_desc[curr->fd] = file;
+	for (int i=2; i<128; i++){
+		if (curr->file_desc[i] == NULL) {
+			fd = i;
+			curr->file_desc[i] = file;
+			break;
+		}
+	}
+	if (fd == 0)
+		return -1;
 
 	/* Add code to deny writes to files in use as executables */
 	if (!strcmp (curr->name, file_name))
 		file_deny_write (file);
-	return curr->fd++;
+	return fd;
 }
 
 /* filesize: Returns the size, in bytes, of the file open as fd. */
 int
 filesize (int fd) {
-	if (fd < 3)
+	if (fd < 2)
 		return NULL;
 	struct file *file = get_file_with_fd (fd);
 	return file_length (file);
@@ -223,10 +242,6 @@ read (int fd, void *buffer, unsigned size) {
 	}
 	//STDOUT
 	else if (fd == 1) {
-		bytes_read = -1;
-	}
-	//STDERR
-	else if (fd == 2) {
 		bytes_read = -1;
 	}
 	else {
@@ -264,10 +279,6 @@ write (int fd, void *buffer, unsigned size) {
 		putbuf (buffer, size);
 		bytes_written = size;
 	}
-	//STDERR
-	else if (fd == 2) {
-		bytes_written = -1;
-	}
 	else {
 		bytes_written = file_write (file, buffer, size);
 	}
@@ -277,7 +288,7 @@ write (int fd, void *buffer, unsigned size) {
 void
 seek (int fd, unsigned position) {
 	struct file *file = get_file_with_fd (fd);
-	if ((file == NULL) || (fd < 3))
+	if ((file == NULL) || (fd < 2))
 		return NULL;
 	file_seek (file, position);
 }
@@ -285,7 +296,7 @@ seek (int fd, unsigned position) {
 unsigned
 tell (int fd) {
 	struct file *file = get_file_with_fd (fd);
-	if ((file == NULL) || (fd < 3))
+	if ((file == NULL) || (fd < 2))
 		return NULL;
 	return file_tell (file);
 }
@@ -295,11 +306,11 @@ close (int fd) {
 	struct file *file = get_file_with_fd (fd);
 	if (file == NULL)
 		return NULL;
-	if (fd < 3)
+	if (fd < 2)
 		return NULL;
 	else {
 		file_close (file);
-		thread_current ()->files[fd] = NULL;
+		thread_current ()->file_desc[fd] = NULL;
 	}
 }
 
@@ -318,7 +329,7 @@ struct file *
 get_file_with_fd (int fd) {
 	if (fd < 0 || fd > 128)
 		return NULL;
-	return thread_current ()->files[fd];
+	return thread_current ()->file_desc[fd];
 }
 
 /* Reads a byte at user virtual address UADDR.

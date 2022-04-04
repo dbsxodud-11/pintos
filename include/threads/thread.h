@@ -127,8 +127,7 @@ struct thread {
 	struct list children;
 	struct list_elem child_elem;
 
-	struct file *files[128];
-	int fd;
+	struct file *file_desc[128];
 
 	struct intr_frame parent_if;
 	struct semaphore sema[3]; // one for fork, one for exit, one for wait
