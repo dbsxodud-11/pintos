@@ -104,14 +104,6 @@ exit (int status) {
 	curr->exit_status = status;
 	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 
-	for (int i=3; i<128; i++) {
-		if (curr->file_desc[i] == NULL)
-			continue;
-		else {
-			file_close (curr->file_desc[i]);
-		}
-	}
-
 	thread_exit ();
 }
 

@@ -86,6 +86,10 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 
 	struct thread *child_thread = get_child_thread_with_tid (child_tid);
 	sema_down (&child_thread->sema[0]);
+
+	if (child_thread->exit_status == -1)
+		return -1;
+
 	return child_tid;
 }
 
@@ -250,6 +254,14 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+
+	for (int i=2; i<128; i++) {
+		if (curr->file_desc[i] == NULL)
+			continue;
+		else {
+			file_close (curr->file_desc[i]);
+		}
+	}
 	
 	/* Process Termination Message */
 	sema_up (&curr->sema[2]);
