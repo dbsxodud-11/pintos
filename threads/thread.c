@@ -610,6 +610,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 		list_init(&t->donations);
 	}
 
+	t->exit_status = 0;
+	t->waiting = false;
+
 	list_init(&t->children);
 	for (int i=0; i<3; i++)
 		sema_init(&t->sema[i], 0);

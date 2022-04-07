@@ -175,14 +175,16 @@ __do_fork (void *aux) {
 	}
 
 	process_init ();
+	if_.R.rax = 0; // child process return 0
 	sema_up (&current->sema[0]);
 	/* Finally, switch to the newly created process. */
 	if (succ) {
-		if_.R.rax = 0; // child process return 0
 		do_iret (&if_);
 	}
 error:
-	thread_exit ();
+	sema_up (&current->sema[0]);
+	exit(-1);
+	// thread_exit ();
 }
 
 /* Switch the current execution context to the f_name.
@@ -238,6 +240,13 @@ process_wait (tid_t child_tid) {
 	if (child_thread == NULL)
 		return -1;
 
+	if (child_thread->waiting){
+		return -1;
+	}
+	else{
+		child_thread->waiting = true;
+	}
+
 	sema_down (&child_thread->sema[2]);
 	int status = child_thread->exit_status;
 
@@ -266,6 +275,14 @@ process_exit (void) {
 	/* Process Termination Message */
 	sema_up (&curr->sema[2]);
 	sema_down (&curr->sema[1]);
+
+	struct list_elem *e;
+	if (!list_empty (&curr->children)) {
+		for (e=list_begin (&curr->children); e!=list_end (&curr->children); e=list_next (e)){
+			struct thread *child_thread = list_entry (e, struct thread, child_elem);
+			wait(child_thread->tid);
+		}
+	}
 	// printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	process_cleanup ();
 }

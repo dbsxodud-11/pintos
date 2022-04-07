@@ -123,6 +123,7 @@ struct thread {
 	uint64_t *pml4;                     /* Page map level 4 */
 
 	int exit_status;
+	bool waiting;
 
 	struct list children;
 	struct list_elem child_elem;
