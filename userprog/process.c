@@ -83,6 +83,8 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	memcpy (&curr->parent_if, if_, sizeof (struct intr_frame));
 
 	tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, curr);
+	if (child_tid == TID_ERROR)
+		return -1;
 
 	struct thread *child_thread = get_child_thread_with_tid (child_tid);
 	sema_down (&child_thread->sema[0]);
@@ -125,6 +127,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
+		return false;
 	}
 	return true;
 }
@@ -249,9 +252,8 @@ process_wait (tid_t child_tid) {
 
 	sema_down (&child_thread->sema[2]);
 	int status = child_thread->exit_status;
-
-	sema_up (&child_thread->sema[1]);
 	list_remove (&child_thread->child_elem);
+	sema_up (&child_thread->sema[1]);
 	return status;
 }
 
@@ -273,8 +275,8 @@ process_exit (void) {
 	}
 	
 	/* Process Termination Message */
-	sema_up (&curr->sema[2]);
-	sema_down (&curr->sema[1]);
+	// sema_up (&curr->sema[2]);
+	// sema_down (&curr->sema[1]);
 
 	struct list_elem *e;
 	if (!list_empty (&curr->children)) {
@@ -285,6 +287,9 @@ process_exit (void) {
 	}
 	// printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	process_cleanup ();
+
+	sema_up (&curr->sema[2]);
+	sema_down (&curr->sema[1]);
 }
 
 /* Free the current process's resources. */
