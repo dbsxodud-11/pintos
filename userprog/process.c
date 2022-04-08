@@ -148,6 +148,7 @@ __do_fork (void *aux) {
 
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	if_.R.rax = 0; // child process return 0
 
 	/* 2. Duplicate PT */
 	current->pml4 = pml4_create();
@@ -178,7 +179,7 @@ __do_fork (void *aux) {
 	}
 
 	process_init ();
-	if_.R.rax = 0; // child process return 0
+	// if_.R.rax = 0; // child process return 0
 	sema_up (&current->sema[0]);
 	/* Finally, switch to the newly created process. */
 	if (succ) {
@@ -243,12 +244,12 @@ process_wait (tid_t child_tid) {
 	if (child_thread == NULL)
 		return -1;
 
-	if (child_thread->waiting){
-		return -1;
-	}
-	else{
-		child_thread->waiting = true;
-	}
+	// if (child_thread->waiting){
+	// 	return -1;
+	// }
+	// else{
+	// 	child_thread->waiting = true;
+	// }
 
 	sema_down (&child_thread->sema[2]);
 	int status = child_thread->exit_status;
@@ -280,13 +281,13 @@ process_exit (void) {
 	// sema_up (&curr->sema[2]);
 	// sema_down (&curr->sema[1]);
 
-	struct list_elem *e;
-	if (!list_empty (&curr->children)) {
-		for (e=list_begin (&curr->children); e!=list_end (&curr->children); e=list_next (e)){
-			struct thread *child_thread = list_entry (e, struct thread, child_elem);
-			wait(child_thread->tid);
-		}
-	}
+	// struct list_elem *e;
+	// if (!list_empty (&curr->children)) {
+	// 	for (e=list_begin (&curr->children); e!=list_end (&curr->children); e=list_next (e)){
+	// 		struct thread *child_thread = list_entry (e, struct thread, child_elem);
+	// 		wait(child_thread->tid);
+	// 	}
+	// }
 	// printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	process_cleanup ();
 

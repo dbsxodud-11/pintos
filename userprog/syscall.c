@@ -17,7 +17,6 @@
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
-struct lock syscall_lock;
 
 /* System call.
  *
@@ -43,8 +42,6 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
-
-	lock_init (&syscall_lock);
 }
 
 /* The main system call interface */
@@ -131,11 +128,11 @@ exec (const char *cmd_line) {
 	 * Otherwise there's a race between the caller and load(). */
 	cmd_line_copy = palloc_get_page (0);
 	if (cmd_line_copy == NULL)
-		return TID_ERROR;
+		exit(-1);
 	strlcpy (cmd_line_copy, cmd_line, PGSIZE);
 
 	if (process_exec (cmd_line_copy) == -1)
-		exit(-1);
+		return -1;
 }
 
 int
@@ -179,9 +176,7 @@ remove (const char *file_name) {
 int
 open (const char *file_name) {
 	check_address (file_name);
-	lock_acquire (&syscall_lock);
 	struct file *file = filesys_open (file_name);
-	lock_release (&syscall_lock);
 	if (file == NULL)
 		return -1;	
 	
@@ -196,9 +191,7 @@ open (const char *file_name) {
 		}
 	}
 	if (fd == 0) {
-		lock_acquire (&syscall_lock);
 		file_close (file);
-		lock_release (&syscall_lock);
 		return -1;
 	}
 
@@ -270,7 +263,6 @@ write (int fd, void *buffer, unsigned size) {
 	if (file == NULL)
 		return -1;
 	
-	lock_acquire (&syscall_lock);
 	// STDIN
 	int bytes_written = 0;
 	if (fd == 0) {
@@ -284,7 +276,6 @@ write (int fd, void *buffer, unsigned size) {
 	else {
 		bytes_written = file_write (file, buffer, size);
 	}
-	lock_release (&syscall_lock);
 	return bytes_written;
 }
 
@@ -312,10 +303,8 @@ close (int fd) {
 	if (fd < 2)
 		return NULL;
 	else {
-		lock_acquire (&syscall_lock);
-		file_close (file);
-		lock_release (&syscall_lock);
 		thread_current ()->file_desc[fd] = NULL;
+		file_close (file);
 	}
 }
 
