@@ -86,11 +86,14 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	if (child_tid == TID_ERROR)
 		return -1;
 
+	if (curr->child_failed_to_duplicate)
+		return -1;
+
 	struct thread *child_thread = get_child_thread_with_tid (child_tid);
 	sema_down (&child_thread->sema[0]);
 
-	if (child_thread->exit_status == -1)
-		return -1;
+	// if (curr->child_failed_to_duplicate)
+	// 	return -1;
 
 	return child_tid;
 }
@@ -186,6 +189,7 @@ __do_fork (void *aux) {
 		do_iret (&if_);
 	}
 error:
+	current->parent->child_failed_to_duplicate = true;
 	sema_up (&current->sema[0]);
 	exit(-1);
 	// thread_exit ();
@@ -244,12 +248,18 @@ process_wait (tid_t child_tid) {
 	if (child_thread == NULL)
 		return -1;
 
-	// if (child_thread->waiting){
-	// 	return -1;
-	// }
-	// else{
-	// 	child_thread->waiting = true;
-	// }
+	if (child_thread->exited_by_exception)
+		return -1;
+
+	if (child_thread->waiting){
+		return -1;
+	}
+	else{
+		child_thread->waiting = true;
+	}
+
+	if (child_thread->tid == TID_ERROR)
+		return TID_ERROR;
 
 	sema_down (&child_thread->sema[2]);
 	int status = child_thread->exit_status;
@@ -281,14 +291,17 @@ process_exit (void) {
 	// sema_up (&curr->sema[2]);
 	// sema_down (&curr->sema[1]);
 
-	// struct list_elem *e;
-	// if (!list_empty (&curr->children)) {
-	// 	for (e=list_begin (&curr->children); e!=list_end (&curr->children); e=list_next (e)){
-	// 		struct thread *child_thread = list_entry (e, struct thread, child_elem);
-	// 		wait(child_thread->tid);
-	// 	}
-	// }
+	struct list_elem *e;
+	if (!list_empty (&curr->children)) {
+		for (e=list_begin (&curr->children); e!=list_end (&curr->children); e=list_next (e)){
+			struct thread *child_thread = list_entry (e, struct thread, child_elem);
+			process_wait(child_thread->tid);
+		}
+	}
 	// printf("%s: exit(%d)\n", curr->name, curr->exit_status);
+	// sema_up (&curr->sema[2]);
+	// sema_down (&curr->sema[1]);
+	
 	process_cleanup ();
 
 	sema_up (&curr->sema[2]);

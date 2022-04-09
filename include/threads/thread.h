@@ -124,9 +124,13 @@ struct thread {
 
 	int exit_status;
 	bool waiting;
+	bool exited_by_exception;
 
 	struct list children;
 	struct list_elem child_elem;
+
+	struct thread *parent;
+	bool child_failed_to_duplicate;
 
 	struct file *file_desc[128];
 	struct file *exec_file;

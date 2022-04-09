@@ -251,6 +251,8 @@ thread_create (const char *name, int priority,
 	/* priority can be changed by thread_func function */
 	check_priority ();
 	/* Add to child list */
+	t->parent = thread_current ();
+	t->child_failed_to_duplicate = false;
 	list_push_back (&thread_current ()->children, &t->child_elem);
 
 	return tid;
@@ -612,6 +614,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	t->exit_status = 0;
 	t->waiting = false;
+	t->exited_by_exception = false;
 
 	list_init(&t->children);
 	for (int i=0; i<3; i++)
