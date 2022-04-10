@@ -133,6 +133,7 @@ struct thread {
 	bool child_failed_to_duplicate;
 
 	struct file *file_desc[128];
+	int fd_count;
 	struct file *exec_file;
 
 	struct intr_frame parent_if;

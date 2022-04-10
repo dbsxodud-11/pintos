@@ -629,6 +629,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	for (int i=2; i<128; i++) {
 		t->file_desc[i] = NULL;
 	}
+	t->fd_count = 0;
 	t->exec_file = NULL;
 
 	t->magic = THREAD_MAGIC;

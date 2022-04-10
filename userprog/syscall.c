@@ -181,22 +181,25 @@ open (const char *file_name) {
 	lock_acquire (&syscall_lock);
 	struct file *file = filesys_open (file_name);
 	lock_release (&syscall_lock);
-	if (file == NULL)
+	if (file == NULL) {
 		return -1;	
+	}
 	
-	int fd;
 	struct thread *curr = thread_current ();
+	if (curr->fd_count == 126) {
+		file_close (file);
+		return -1;
+	}
+
+	int fd;
 	// curr->file_desc[curr->fd] = file;
 	for (int i=2; i<128; i++){
 		if (curr->file_desc[i] == NULL) {
 			fd = i;
 			curr->file_desc[i] = file;
+			curr->fd_count += 1;
 			break;
 		}
-	}
-	if (fd == 0) {
-		file_close (file);
-		return -1;
 	}
 
 	/* Add code to deny writes to files in use as executables */
@@ -311,8 +314,11 @@ close (int fd) {
 	if (fd < 2)
 		return NULL;
 	else {
-		thread_current ()->file_desc[fd] = NULL;
 		lock_acquire (&syscall_lock);
+		struct thread *curr = thread_current ();
+		curr->file_desc[fd] = NULL;
+		curr->fd_count -= 1;
+		// lock_acquire (&syscall_lock);
 		file_close (file);
 		lock_release (&syscall_lock);
 	}

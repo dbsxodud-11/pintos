@@ -180,6 +180,7 @@ __do_fork (void *aux) {
 			continue;
 		current->file_desc[i] = file_duplicate (file);
 	}
+	current->fd_count = parent->fd_count;
 
 	process_init ();
 	// if_.R.rax = 0; // child process return 0
