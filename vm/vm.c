@@ -62,20 +62,28 @@ err:
 
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *
-spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
+spt_find_page (struct supplemental_page_table *spt, void *va) {
 	struct page *page = NULL;
 	/* TODO: Fill this function. */
+	struct page *fake_page = malloc(sizeof (struct page));
+	fake_page->va = va;
 
-	return page;
+	struct hash_elem *e = hash_find (spt->hash_for_spt, &fake_page->hash_elem);
+	free(fake_page);
+
+	if (e != NULL)
+		return hash_entry (e, struct page, hash_elem);
+	else
+		return NULL;
 }
 
 /* Insert PAGE into spt with validation. */
 bool
-spt_insert_page (struct supplemental_page_table *spt UNUSED,
-		struct page *page UNUSED) {
+spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
 	int succ = false;
 	/* TODO: Fill this function. */
-
+	if (hash_insert (spt->hash_for_spt, &page->hash_elem) == NULL)
+		succ = true;
 	return succ;
 }
 
@@ -173,7 +181,22 @@ vm_do_claim_page (struct page *page) {
 
 /* Initialize new supplemental page table */
 void
-supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+supplemental_page_table_init (struct supplemental_page_table *spt) {
+	hash_init (spt->hash_for_spt, hash_hash_func_for_spt, hash_less_func_for_spt, NULL);
+}
+
+uint64_t 
+hash_hash_func_for_spt (const struct hash_elem *e, void *aux) {
+	struct page *page = hash_entry (e, struct page, hash_elem);
+	return hash_bytes (page->va, sizeof (page->va));
+}
+
+bool
+hash_less_func_for_spt (const struct hash_elem *a, const struct hash_elem *b, void *aux) {
+	if (hash_entry (a, struct page, hash_elem)->va < hash_entry (b, struct page, hash_elem)->va)
+		return true;
+	else
+		return false;
 }
 
 /* Copy supplemental page table from src to dst */
