@@ -68,7 +68,7 @@ spt_find_page (struct supplemental_page_table *spt, void *va) {
 	struct page *fake_page = malloc(sizeof (struct page));
 	fake_page->va = va;
 
-	struct hash_elem *e = hash_find (spt->hash_for_spt, &fake_page->hash_elem);
+	struct hash_elem *e = hash_find (&spt->hash_for_spt, &fake_page->hash_elem);
 	free(fake_page);
 
 	if (e != NULL)
@@ -82,7 +82,7 @@ bool
 spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
 	int succ = false;
 	/* TODO: Fill this function. */
-	if (hash_insert (spt->hash_for_spt, &page->hash_elem) == NULL)
+	if (hash_insert (&spt->hash_for_spt, &page->hash_elem) == NULL)
 		succ = true;
 	return succ;
 }
@@ -193,7 +193,7 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt) {
-	hash_init (spt->hash_for_spt, hash_hash_func_for_spt, hash_less_func_for_spt, NULL);
+	hash_init (&spt->hash_for_spt, hash_hash_func_for_spt, hash_less_func_for_spt, NULL);
 }
 
 uint64_t 
