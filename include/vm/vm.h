@@ -91,6 +91,13 @@ struct supplemental_page_table {
 	struct hash hash_for_spt;
 };
 
+struct necessary_info {
+	struct file *file;
+	off_t ofs;
+	size_t page_read_bytes;
+	size_t page_zero_bytes;
+};
+
 #include "threads/thread.h"
 void supplemental_page_table_init (struct supplemental_page_table *spt);
 /* functions for initialize hash table */ 
