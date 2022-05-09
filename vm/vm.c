@@ -17,6 +17,7 @@ vm_init (void) {
 	register_inspect_intr ();
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. */
+	list_init (&frame_list);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -105,6 +106,9 @@ vm_get_victim (void) {
 	struct frame *victim = NULL;
 	 /* TODO: The policy for eviction is up to you. */
 
+	struct list_elem *e = list_pop_front (&frame_list); // FIFO Policy
+	victim = list_entry (e, struct frame, frame_elem);
+
 	return victim;
 }
 
@@ -112,10 +116,10 @@ vm_get_victim (void) {
  * Return NULL on error.*/
 static struct frame *
 vm_evict_frame (void) {
-	struct frame *victim UNUSED = vm_get_victim ();
+	struct frame *victim = vm_get_victim ();
 	/* TODO: swap out the victim and return the evicted frame. */
-
-	return NULL;
+	swap_out (victim->page);
+	return victim;
 }
 
 /* palloc() and get frame. If there is no available page, evict the page
@@ -127,13 +131,16 @@ vm_get_frame (void) {
 	/* TODO: Fill this function. */
 	void *kva = palloc_get_page (PAL_USER);
 	if (kva == NULL) {
-		PANIC("Not Implemented");
+		struct frame *frame = vm_evict_frame ();
+		frame->page = NULL;
+		return frame;
 	}
 
 	struct frame *frame = malloc(sizeof (struct frame));
 	frame->kva = kva;
 	frame->page = NULL;
 
+	list_push_back (&frame_list, &frame->frame_elem);
 	return frame;
 }
 
@@ -149,14 +156,15 @@ vm_handle_wp (struct page *page UNUSED) {
 
 /* Return true on success */
 bool
-vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
-		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
-	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
-	struct page *page = NULL;
+vm_try_handle_fault (struct intr_frame *f, void *addr, bool user, bool write, bool not_present) {
+	struct supplemental_page_table *spt = &thread_current ()->spt;
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
-
-	return vm_do_claim_page (page);
+	if (not_present) {
+		struct page *page = spt_find_page (spt, addr);
+		return vm_do_claim_page (page);
+	}
+	return false;
 }
 
 /* Free the page.
