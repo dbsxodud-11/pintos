@@ -745,12 +745,17 @@ lazy_load_segment (struct page *page, void *aux) {
 	struct necessary_info *info = (struct necessary_info *)aux;
 	
 	struct file *file = info->file;
+	printf("After: %p\n", file);
 	off_t ofs = info->ofs;
 	size_t page_read_bytes = info->page_read_bytes;
 	size_t page_zero_bytes = info->page_zero_bytes;
 
 	file_seek (file, ofs);
-	printf("%d\n", file_read (file, page->frame->kva, page_read_bytes));
+	printf("%p\n", page->frame->kva);
+	if (file_read (file, page->frame->kva, page_read_bytes) != page_read_bytes) {
+		ASSERT(0);
+		return false;
+	}
 	memset(page->frame->kva + page_read_bytes, 0, page_zero_bytes);
 	return true;
 }
@@ -785,10 +790,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		struct necessary_info *info = malloc(sizeof (struct necessary_info));
-		info->file = file;
+		info->file = file_reopen (file);
 		info->ofs = ofs;
 		info->page_read_bytes = page_read_bytes;
 		info->page_zero_bytes = page_zero_bytes;
+		printf("Before: %p\n", info->file);
 
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, info)) {
@@ -800,6 +806,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
+		ofs += PGSIZE;
 	}
 	return true;
 }

@@ -2,6 +2,7 @@
 
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
+#include "threads/mmu.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
 
@@ -161,8 +162,7 @@ vm_try_handle_fault (struct intr_frame *f, void *addr, bool user, bool write, bo
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 	if (not_present) {
-		struct page *page = spt_find_page (spt, addr);
-		return vm_do_claim_page (page);
+		return vm_claim_page (addr);
 	}
 	return false;
 }
@@ -198,7 +198,7 @@ vm_do_claim_page (struct page *page) {
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	struct thread *curr = thread_current ();
-	if (!pml4_set_page (&curr->spt, page->va, frame->kva, page->writable))
+	if (!pml4_set_page (curr->pml4, page->va, frame->kva, page->writable))
 		return false;
 
 	return swap_in (page, frame->kva);
