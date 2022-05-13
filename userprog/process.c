@@ -745,13 +745,12 @@ lazy_load_segment (struct page *page, void *aux) {
 	struct necessary_info *info = (struct necessary_info *)aux;
 	
 	struct file *file = info->file;
-	printf("After: %p\n", file);
+	// printf("After: %p\n", file);
 	off_t ofs = info->ofs;
 	size_t page_read_bytes = info->page_read_bytes;
 	size_t page_zero_bytes = info->page_zero_bytes;
 
 	file_seek (file, ofs);
-	printf("%p\n", page->frame->kva);
 	if (file_read (file, page->frame->kva, page_read_bytes) != page_read_bytes) {
 		ASSERT(0);
 		return false;
@@ -794,7 +793,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		info->ofs = ofs;
 		info->page_read_bytes = page_read_bytes;
 		info->page_zero_bytes = page_zero_bytes;
-		printf("Before: %p\n", info->file);
+		// printf("Before: %p\n", info->file);
 
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, info)) {
