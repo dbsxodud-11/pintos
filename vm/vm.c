@@ -227,13 +227,49 @@ hash_less_func_for_spt (const struct hash_elem *a, const struct hash_elem *b, vo
 
 /* Copy supplemental page table from src to dst */
 bool
-supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
-		struct supplemental_page_table *src UNUSED) {
+supplemental_page_table_copy (struct supplemental_page_table *dst, struct supplemental_page_table *src) {
+	struct hash_iterator iter;
+	hash_first (&iter, &src->hash_for_spt);
+
+	while (hash_next (&iter)) {
+		struct page *parent_page = hash_entry (hash_cur (&iter), struct page, hash_elem);
+
+		struct necessary_info *parent_info = parent_page->uninit.aux;
+		if (parent_info != NULL) {
+			struct necessary_info *child_info = malloc(sizeof (struct necessary_info));
+			child_info->file = file_reopen (parent_info->file);
+			child_info->ofs = parent_info->ofs;
+			child_info->page_read_bytes = parent_info->page_read_bytes;
+			child_info->page_zero_bytes = parent_info->page_zero_bytes;
+
+			vm_alloc_page_with_initializer (parent_page->uninit.type, parent_page->va, parent_page->writable,
+											parent_page->uninit.page_initializer, child_info);
+			vm_claim_page (parent_page->va);
+		}
+		else {
+			vm_alloc_page (parent_page->uninit.type, parent_page->va, parent_page->writable);
+			vm_claim_page (parent_page->va);
+		}
+		struct page *child_page = spt_find_page (dst, parent_page->va);
+		memcpy (child_page->frame->kva, parent_page->frame->kva, PGSIZE);
+	}
+	return true;
 }
 
 /* Free the resource hold by the supplemental page table */
 void
-supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
+supplemental_page_table_kill (struct supplemental_page_table *spt) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+	if (hash_empty (&spt->hash_for_spt))
+		return;
+	
+	struct hash_iterator iter;
+	hash_first (&iter, &spt->hash_for_spt);
+
+	while (hash_next (&iter)) {
+		struct page *page = hash_entry (hash_cur (&iter), struct page, hash_elem);
+		hash_delete (&spt->hash_for_spt, &page->hash_elem);
+		// destroy (page);
+	}
 }
