@@ -330,7 +330,7 @@ check_address (void *addr) {
 	// printf("%d\n", is_kernel_vaddr (addr));
 	if ((addr == NULL) || (is_kernel_vaddr (addr))) //null pointer or pointer to kernel address space
 		exit(-1);
-	if (pml4_get_page (thread_current ()->pml4, addr) == NULL) // page fault case
+	if (spt_find_page (&thread_current ()->spt, addr) == NULL) // page fault case
 		exit(-1);
 }
 
