@@ -148,7 +148,13 @@ vm_get_frame (void) {
 
 /* Growing the stack. */
 static void
-vm_stack_growth (void *addr UNUSED) {
+vm_stack_growth () {
+	void *stack_bottom = thread_current ()->stack_bottom - PGSIZE;
+
+	if (vm_alloc_page (VM_ANON, stack_bottom, true)) {
+		vm_claim_page (stack_bottom);
+		thread_current ()->stack_bottom = stack_bottom;
+	}
 }
 
 /* Handle the fault on write_protected page */
@@ -163,7 +169,18 @@ vm_try_handle_fault (struct intr_frame *f, void *addr, bool user, bool write, bo
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 	if (not_present) {
-		return vm_claim_page (addr);
+		if (!vm_claim_page (addr)) {
+			if (f->rsp - 8 <= addr && USER_STACK - 0x100000 <= addr && addr <= USER_STACK) {
+                vm_stack_growth ();
+                return true;
+            }
+			else {
+				return false;
+			}
+		}
+		else {
+			return true;
+		}
 	}
 	return false;
 }
@@ -269,7 +286,7 @@ supplemental_page_table_kill (struct supplemental_page_table *spt) {
 
 	while (hash_next (&iter)) {
 		struct page *page = hash_entry (hash_cur (&iter), struct page, hash_elem);
-		hash_delete (&spt->hash_for_spt, &page->hash_elem);
-		// destroy (page);
+		destroy (page);
 	}
+	hash_init (&spt->hash_for_spt, hash_hash_func_for_spt, hash_less_func_for_spt, NULL);
 }

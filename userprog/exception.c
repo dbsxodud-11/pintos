@@ -153,7 +153,8 @@ page_fault (struct intr_frame *f) {
 
 	/* Count page faults. */
 	page_fault_cnt++;
-
+	exit(-1);
+	
 #ifdef USERPROG
 	if (user || is_kernel_vaddr (fault_addr))
 		exit(-1);

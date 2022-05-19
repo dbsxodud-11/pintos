@@ -797,7 +797,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, info)) {
-			ASSERT(0);
 			return false;
 		}
 
@@ -825,6 +824,7 @@ setup_stack (struct intr_frame *if_) {
 		success = vm_claim_page (stack_bottom);
 		if (success) {
 			if_->rsp = USER_STACK;
+			thread_current ()->stack_bottom = stack_bottom;
 		}
 	}
 
