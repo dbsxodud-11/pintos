@@ -93,6 +93,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CLOSE:
 			close(f->R.rdi);
 			break;
+		case SYS_MMAP:
+			f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+			break;
 		default:
 			exit(-1);
 			break;
@@ -322,6 +325,26 @@ close (int fd) {
 		file_close (file);
 		lock_release (&syscall_lock);
 	}
+}
+
+void *
+mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
+	// It must fail if addr is not page-aligned or if the range of pages mapped overlaps 
+	// any existing set of mapped pages, including the stack or pages mapped at executable load time.
+	if (is_kernel_vaddr (addr) || is_kernel_vaddr (addr + length) || length < 0 || length > KERN_BASE || 
+		pg_round_down(addr) != addr || addr == NULL || offset % PGSIZE)
+		return NULL;
+
+	// Try to mmap stdin, stdout
+	if (fd < 2)
+		return NULL;
+	
+	struct file *file = get_file_with_fd (fd);
+	// A call to mmap may fail if the file opened as fd has a length of zero bytes.
+	if (file == NULL)
+		return NULL;
+
+	return do_mmap (addr, length, writable, file, offset);
 }
 
 /* Check Address is valid */

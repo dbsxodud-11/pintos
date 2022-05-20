@@ -19,6 +19,7 @@ int write (int fd, void *buffer, unsigned length);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset);
 
 void check_address (void *addr);
 struct file *get_file_with_fd (int fd);

@@ -1,6 +1,7 @@
 /* file.c: Implementation of memory backed file object (mmaped object). */
 
 #include "vm/vm.h"
+#include "threads/vaddr.h"
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
@@ -46,10 +47,62 @@ file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
 }
 
+static bool
+lazy_load_file (struct page *page, void *aux) {
+	struct necessary_info *info = (struct necessary_info *)aux;
+	
+	struct file *file = info->file;
+	// printf("After: %p\n", file);
+	off_t ofs = info->ofs;
+	size_t page_read_bytes = info->page_read_bytes;
+	size_t page_zero_bytes = info->page_zero_bytes;
+
+	file_seek (file, ofs);
+	if (file_read (file, page->frame->kva, page_read_bytes) != page_read_bytes) {
+		ASSERT(0);
+		return false;
+	}
+	memset(page->frame->kva + page_read_bytes, 0, page_zero_bytes);
+	return true;
+}
+
 /* Do the mmap */
 void *
-do_mmap (void *addr, size_t length, int writable,
-		struct file *file, off_t offset) {
+do_mmap (void *addr, size_t length, int writable, struct file *file, off_t offset) {
+	void *addr_copy = addr;
+	size_t read_bytes = length > file_length (file) ? file_length (file) : length;
+    size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
+	int count;
+
+	while (read_bytes > 0 || zero_bytes > 0) {
+		/* Do calculate how to fill this page.
+		 * We will read PAGE_READ_BYTES bytes from FILE
+		 * and zero the final PAGE_ZERO_BYTES bytes. */
+		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+		/* TODO: Set up aux to pass information to the lazy_load_file. */
+		struct necessary_info *info = malloc(sizeof (struct necessary_info));
+		info->file = file_reopen (file);
+		info->ofs = offset;
+		info->page_read_bytes = page_read_bytes;
+		info->page_zero_bytes = page_zero_bytes;
+		// printf("Before: %p\n", info->file);
+
+		if (!vm_alloc_page_with_initializer (VM_FILE, addr,
+					writable, lazy_load_file, info)) {
+			return NULL;
+		}
+
+		/* Advance. */
+		read_bytes -= page_read_bytes;
+		zero_bytes -= page_zero_bytes;
+		addr += PGSIZE;
+		offset += PGSIZE;
+		count += 1;
+	}
+	
+	return addr_copy;
 }
 
 /* Do the munmap */
