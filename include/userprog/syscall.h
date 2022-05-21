@@ -23,6 +23,7 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset);
 void munmap (void *addr);
 
 void check_address (void *addr);
+void check_buffer (void *buffer, unsigned size);
 struct file *get_file_with_fd (int fd);
 
 static int64_t get_user (const uint8_t *uaddr);

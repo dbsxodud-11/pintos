@@ -229,7 +229,8 @@ could not be read (due to a condition other than end of file). fd 0 reads
 from the keyboard using input_getc() */
 int
 read (int fd, void *buffer, unsigned size) {
-	check_address (buffer);
+	// check_address (buffer);
+	check_buffer (buffer, size);
 	struct file *file = get_file_with_fd (fd);
 	if (file == NULL)
 		return -1;
@@ -362,6 +363,17 @@ check_address (void *addr) {
 	if ((addr == NULL) || (is_kernel_vaddr (addr))) //null pointer or pointer to kernel address space
 		exit(-1);
 	if (spt_find_page (&thread_current ()->spt, addr) == NULL) // page fault case
+		exit(-1);
+}
+
+void
+check_buffer (void *buffer, unsigned size) {
+	if ((buffer == NULL) || (is_kernel_vaddr (buffer))) //null pointer or pointer to kernel address space
+		exit(-1);
+	// check boundary
+	struct page *front_page = spt_find_page (&thread_current ()->spt, buffer);
+	struct page *back_page = spt_find_page (&thread_current ()->spt, buffer + size - 1);
+	if (front_page == NULL || back_page == NULL || !front_page->writable) 
 		exit(-1);
 }
 
