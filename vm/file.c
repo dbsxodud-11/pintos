@@ -74,6 +74,9 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t offse
     size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
 	int count;
 
+	if (read_bytes == 0)
+		return NULL;
+
 	while (read_bytes > 0 || zero_bytes > 0) {
 		/* Do calculate how to fill this page.
 		 * We will read PAGE_READ_BYTES bytes from FILE
@@ -113,5 +116,15 @@ do_munmap (void *addr) {
 	if (page == NULL)
 		return;
 
+	if (page->uninit.type != VM_FILE || page->uninit.aux == NULL)
+		return;
+
+	struct necessary_info *info = page->uninit.aux;
+        
+	if (pml4_is_dirty (curr->pml4, page->va)) {
+		// mmap'd regions are only written back on munmap if the data was actually modified in memory
+		file_write_at(info->file, addr, info->page_read_bytes, info->ofs);
+		pml4_set_dirty (curr->pml4, page->va, true);
+	}
 	pml4_clear_page (curr->pml4, addr);
 }
