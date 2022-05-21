@@ -96,6 +96,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_MMAP:
 			f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
 			break;
+		case SYS_MUNMAP:
+			munmap(f->R.rdi);
+			break;
 		default:
 			exit(-1);
 			break;
@@ -345,6 +348,11 @@ mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 		return NULL;
 
 	return do_mmap (addr, length, writable, file, offset);
+}
+
+void
+munmap (void *addr) {
+	do_munmap (addr);
 }
 
 /* Check Address is valid */

@@ -108,4 +108,10 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t offse
 /* Do the munmap */
 void
 do_munmap (void *addr) {
+	struct thread *curr = thread_current ();
+	struct page *page = spt_find_page (&curr->spt, addr);
+	if (page == NULL)
+		return;
+
+	pml4_clear_page (curr->pml4, addr);
 }
