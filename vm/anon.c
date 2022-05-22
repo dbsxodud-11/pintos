@@ -26,7 +26,7 @@ void
 vm_anon_init (void) {
 	/* TODO: Set up the swap_disk. */
 	swap_disk = disk_get (1, 1);
-	swap_table = bitmap_create (PAGE_SECTOR_SIZE);
+	swap_table = bitmap_create (disk_size (swap_disk) / PAGE_SECTOR_SIZE);
 }
 
 /* Initialize the file mapping */
@@ -45,15 +45,19 @@ anon_swap_in (struct page *page, void *kva) {
 	struct anon_page *anon_page = &page->anon;
 
 	int swap_sector = anon_page->sector;
-	if (swap_sector == -1)
+	if (swap_sector == -1) {
+		// ASSERT(0);
 		return false;
-
-	for (int i=0; i<PAGE_SECTOR_SIZE; i++) {
-		disk_read (swap_disk, swap_sector + i, page->frame->kva + PAGE_SECTOR_SIZE * i);
 	}
 
-	bitmap_set_all (swap_table, false);
-	pml4_set_page (thread_current ()->pml4, page->va, page->frame->kva, page->writable);
+	for (int i=0; i<PAGE_SECTOR_SIZE; i++) {
+		disk_read (swap_disk, swap_sector * PAGE_SECTOR_SIZE + i, kva + DISK_SECTOR_SIZE * i);
+	}
+
+	bitmap_flip (swap_table, swap_sector);
+	pml4_set_page (thread_current ()->pml4, page->va, kva, page->writable);
+	anon_page->sector = -1;
+
 	return true; 
 }
 
@@ -62,16 +66,18 @@ static bool
 anon_swap_out (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
 
-	int swap_sector = bitmap_scan (swap_table, 0, 1, true);
+	int swap_sector = bitmap_scan (swap_table, 0, 1, false);
 	if (swap_sector == BITMAP_ERROR)
 		return false;
 	
 	for (int i=0; i<PAGE_SECTOR_SIZE; i++) {
-		disk_write (swap_disk, swap_sector + i, page->frame->kva + PAGE_SECTOR_SIZE * i);
+		disk_write (swap_disk, swap_sector * PAGE_SECTOR_SIZE + i, page->frame->kva + DISK_SECTOR_SIZE * i);
 	}
 
-	pml4_set_accessed (thread_current ()->pml4, page->va, false);
+	bitmap_flip (swap_table, swap_sector);
 	pml4_clear_page(thread_current ()->pml4, page->va);
+	anon_page->sector = swap_sector;
+
 	return true;
 }
 

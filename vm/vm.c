@@ -113,7 +113,7 @@ vm_get_victim (void) {
 	struct frame *victim = NULL;
 	 /* TODO: The policy for eviction is up to you. */
 
-	struct list_elem *e = list_pop_front (&frame_list); // FIFO Policy
+	struct list_elem *e = list_front (&frame_list); // FIFO Policy
 	victim = list_entry (e, struct frame, frame_elem);
 
 	return victim;
