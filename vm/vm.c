@@ -291,6 +291,7 @@ supplemental_page_table_kill (struct supplemental_page_table *spt) {
 	while (hash_next (&iter)) {
 		struct page *page = hash_entry (hash_cur (&iter), struct page, hash_elem);
 		destroy (page);
+		// hash_delete (&spt->hash_for_spt, &page->hash_elem);
 	}
 	hash_init (&spt->hash_for_spt, hash_hash_func_for_spt, hash_less_func_for_spt, NULL);
 }
