@@ -5,6 +5,7 @@
 #include "threads/mmu.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "userprog/syscall.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -254,15 +255,13 @@ supplemental_page_table_copy (struct supplemental_page_table *dst, struct supple
 
 	while (hash_next (&iter)) {
 		struct page *parent_page = hash_entry (hash_cur (&iter), struct page, hash_elem);
-
-		struct necessary_info *parent_info = parent_page->uninit.aux;
-		if (parent_info != NULL) {
+		if (parent_page->operations->type == VM_UNINIT) {
+			struct necessary_info *parent_info = parent_page->uninit.aux;
 			struct necessary_info *child_info = malloc(sizeof (struct necessary_info));
 			child_info->file = file_reopen (parent_info->file);
 			child_info->ofs = parent_info->ofs;
 			child_info->page_read_bytes = parent_info->page_read_bytes;
 			child_info->page_zero_bytes = parent_info->page_zero_bytes;
-
 			vm_alloc_page_with_initializer (parent_page->uninit.type, parent_page->va, parent_page->writable,
 											parent_page->uninit.page_initializer, child_info);
 			vm_claim_page (parent_page->va);
@@ -270,9 +269,13 @@ supplemental_page_table_copy (struct supplemental_page_table *dst, struct supple
 		else {
 			vm_alloc_page (parent_page->uninit.type, parent_page->va, parent_page->writable);
 			vm_claim_page (parent_page->va);
+			struct page *child_page = spt_find_page (dst, parent_page->va);
+			ASSERT (parent_page	->frame != NULL);
+			memcpy (child_page->frame->kva, parent_page->frame->kva, PGSIZE);
 		}
-		struct page *child_page = spt_find_page (dst, parent_page->va);
-		memcpy (child_page->frame->kva, parent_page->frame->kva, PGSIZE);
+		// struct page *child_page = spt_find_page (dst, parent_page->va);
+		// ASSERT (parent_page->frame != NULL);
+		// memcpy (child_page->frame->kva, parent_page->frame->kva, PGSIZE);
 	}
 	return true;
 }

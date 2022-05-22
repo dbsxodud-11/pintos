@@ -373,7 +373,7 @@ check_buffer (void *buffer, unsigned size) {
 	// check boundary
 	struct page *front_page = spt_find_page (&thread_current ()->spt, buffer);
 	struct page *back_page = spt_find_page (&thread_current ()->spt, buffer + size - 1);
-	if (front_page == NULL || back_page == NULL || !front_page->writable) 
+	if (front_page == NULL || back_page == NULL || !front_page->writable)	
 		exit(-1);
 }
 
