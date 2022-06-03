@@ -1,3 +1,4 @@
+#include "filesys/fat.h"
 #include "filesys/inode.h"
 #include <list.h>
 #include <debug.h>
@@ -14,6 +15,7 @@
  * Must be exactly DISK_SECTOR_SIZE bytes long. */
 struct inode_disk {
 	disk_sector_t start;                /* First data sector. */
+	// cluster_t start_clst;
 	off_t length;                       /* File size in bytes. */
 	unsigned magic;                     /* Magic number. */
 	uint32_t unused[125];               /* Not used. */
@@ -29,7 +31,8 @@ bytes_to_sectors (off_t size) {
 /* In-memory inode. */
 struct inode {
 	struct list_elem elem;              /* Element in inode list. */
-	disk_sector_t sector;               /* Sector number of disk location. */
+	// disk_sector_t sector;               /* Sector number of disk location. */
+	cluster_t clst;
 	int open_cnt;                       /* Number of openers. */
 	bool removed;                       /* True if deleted, false otherwise. */
 	int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
@@ -65,7 +68,7 @@ inode_init (void) {
  * Returns true if successful.
  * Returns false if memory or disk allocation fails. */
 bool
-inode_create (disk_sector_t sector, off_t length) {
+inode_create (cluster_t clst, off_t length) {
 	struct inode_disk *disk_inode = NULL;
 	bool success = false;
 
@@ -80,17 +83,34 @@ inode_create (disk_sector_t sector, off_t length) {
 		size_t sectors = bytes_to_sectors (length);
 		disk_inode->length = length;
 		disk_inode->magic = INODE_MAGIC;
-		if (free_map_allocate (sectors, &disk_inode->start)) {
-			disk_write (filesys_disk, sector, disk_inode);
-			if (sectors > 0) {
-				static char zeros[DISK_SECTOR_SIZE];
-				size_t i;
 
-				for (i = 0; i < sectors; i++) 
-					disk_write (filesys_disk, disk_inode->start + i, zeros); 
+		// if (free_map_allocate (sectors, &disk_inode->start)) {
+		// 	disk_write (filesys_disk, sector, disk_inode);
+		// 	if (sectors > 0) {
+		// 		static char zeros[DISK_SECTOR_SIZE];
+		// 		size_t i;
+
+		// 		for (i = 0; i < sectors; i++) 
+		// 			disk_write (filesys_disk, disk_inode->start + i, zeros); 
+		// 	}
+		// 	success = true; 
+		// } 
+
+		disk_write (filesys_disk, cluster_to_sector (clst), disk_inode);
+		if (sectors > 0) {
+			static char zeros[DISK_SECTOR_SIZE];
+			size_t i;
+
+			cluster_t prev_clst = clst;
+			for (i=0; i<sectors; i++) {
+				clst = fat_create_chain (prev_clst);
+				if (clst == 0)
+					break;
+				disk_write (filesys_disk, cluster_to_sector (clst), zeros);
+				prev_clst = clst;
 			}
-			success = true; 
-		} 
+			success = true;
+		}
 		free (disk_inode);
 	}
 	return success;
@@ -100,7 +120,7 @@ inode_create (disk_sector_t sector, off_t length) {
  * and returns a `struct inode' that contains it.
  * Returns a null pointer if memory allocation fails. */
 struct inode *
-inode_open (disk_sector_t sector) {
+inode_open (cluster_t clst) {
 	struct list_elem *e;
 	struct inode *inode;
 
@@ -108,7 +128,7 @@ inode_open (disk_sector_t sector) {
 	for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
 			e = list_next (e)) {
 		inode = list_entry (e, struct inode, elem);
-		if (inode->sector == sector) {
+		if (inode->clst == clst) {
 			inode_reopen (inode);
 			return inode; 
 		}
@@ -121,11 +141,11 @@ inode_open (disk_sector_t sector) {
 
 	/* Initialize. */
 	list_push_front (&open_inodes, &inode->elem);
-	inode->sector = sector;
+	inode->clst = clst;
 	inode->open_cnt = 1;
 	inode->deny_write_cnt = 0;
 	inode->removed = false;
-	disk_read (filesys_disk, inode->sector, &inode->data);
+	disk_read (filesys_disk, cluster_to_sector (inode->clst), &inode->data);
 	return inode;
 }
 
@@ -140,7 +160,7 @@ inode_reopen (struct inode *inode) {
 /* Returns INODE's inode number. */
 disk_sector_t
 inode_get_inumber (const struct inode *inode) {
-	return inode->sector;
+	return cluster_to_sector (inode->clst);
 }
 
 /* Closes INODE and writes it to disk.
@@ -159,9 +179,10 @@ inode_close (struct inode *inode) {
 
 		/* Deallocate blocks if removed. */
 		if (inode->removed) {
-			free_map_release (inode->sector, 1);
-			free_map_release (inode->data.start,
-					bytes_to_sectors (inode->data.length)); 
+			// free_map_release (inode->sector, 1);
+			// free_map_release (inode->data.start,
+			// 		bytes_to_sectors (inode->data.length)); 
+			fat_remove_chain (inode->clst, 0);
 		}
 
 		free (inode); 
