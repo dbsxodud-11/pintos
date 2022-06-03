@@ -168,6 +168,27 @@ fat_fs_init (void) {
 cluster_t
 fat_create_chain (cluster_t clst) {
 	/* TODO: Your code goes here. */
+
+	// Find Empty Cluster
+	cluster_t empty_clst;
+	for (empty_clst=0; empty_clst<fat_fs->fat_length; empty_clst++) {
+		if (!fat_get (empty_clst))
+			break;
+	}
+
+	// Fails to allocate a new cluster
+	if (fat_fs->fat_length <= empty_clst)
+		return 0;
+
+	if (clst == 0)
+		fat_fs->fat[empty_clst] = EOChain;
+	else {
+		// Extend a chain
+		cluster_t past_next_clst = fat_fs->fat[clst];
+		fat_fs->fat[clst] = empty_clst;
+		fat_fs->fat[empty_clst] = past_next_clst;
+	}
+	return empty_clst;
 }
 
 /* Remove the chain of clusters starting from CLST.
@@ -175,6 +196,14 @@ fat_create_chain (cluster_t clst) {
 void
 fat_remove_chain (cluster_t clst, cluster_t pclst) {
 	/* TODO: Your code goes here. */
+	cluster_t nclust = fat_fs->fat[clst];
+	while (nclust != EOChain) {
+		fat_fs->fat[clst] = 0;
+
+		clst = nclust;
+		nclust = fat_fs->fat[clst];
+	}
+	fat_fs->fat[clst] = 0;
 }
 
 /* Update a value in the FAT table. */
