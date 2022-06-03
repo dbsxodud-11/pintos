@@ -56,7 +56,7 @@ static cluster_t
 byte_to_cluster (const struct inode *inode, off_t pos) {
 	ASSERT (inode != NULL)
 	if (pos < inode->data.length) {
-		cluster_t clst = inode->data.start;
+		cluster_t clst = inode->clst;
 		size_t i;
 
 		for (i=0; i<pos/DISK_SECTOR_SIZE; i++) {

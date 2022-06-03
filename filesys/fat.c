@@ -156,6 +156,7 @@ fat_fs_init (void) {
 	fat_fs->fat = NULL;
 	fat_fs->fat_length = fat_fs->bs.fat_sectors * DISK_SECTOR_SIZE / sizeof (cluster_t);
 	fat_fs->data_start = fat_fs->bs.fat_start + fat_fs->bs.fat_sectors;
+	lock_init (&fat_fs->write_lock);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -180,6 +181,7 @@ fat_create_chain (cluster_t clst) {
 	if (fat_fs->fat_length <= empty_clst)
 		return 0;
 
+	lock_acquire (&fat_fs->write_lock);
 	if (clst == 0)
 		fat_fs->fat[empty_clst] = EOChain;
 	else {
@@ -188,6 +190,7 @@ fat_create_chain (cluster_t clst) {
 		fat_fs->fat[clst] = empty_clst;
 		fat_fs->fat[empty_clst] = past_next_clst;
 	}
+	lock_release (&fat_fs->write_lock);
 	return empty_clst;
 }
 
@@ -197,12 +200,14 @@ void
 fat_remove_chain (cluster_t clst, cluster_t pclst) {
 	/* TODO: Your code goes here. */
 	cluster_t nclust = fat_fs->fat[clst];
+	lock_acquire (&fat_fs->write_lock);
 	while (nclust != EOChain) {
 		fat_fs->fat[clst] = 0;
 
 		clst = nclust;
 		nclust = fat_fs->fat[clst];
 	}
+	lock_acquire (&fat_fs->write_lock);
 	fat_fs->fat[clst] = 0;
 }
 
@@ -210,7 +215,9 @@ fat_remove_chain (cluster_t clst, cluster_t pclst) {
 void
 fat_put (cluster_t clst, cluster_t val) {
 	/* TODO: Your code goes here. */
+	lock_acquire (&fat_fs->write_lock);
 	fat_fs->fat[clst] = val;
+	lock_release (&fat_fs->write_lock);
 }
 
 /* Fetch a value in the FAT table. */
