@@ -93,12 +93,14 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CLOSE:
 			close(f->R.rdi);
 			break;
+#ifdef VM
 		case SYS_MMAP:
 			f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
 			break;
 		case SYS_MUNMAP:
 			munmap(f->R.rdi);
 			break;
+#endif
 		default:
 			exit(-1);
 			break;
@@ -331,6 +333,7 @@ close (int fd) {
 	}
 }
 
+#ifdef VM
 void *
 mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 	// It must fail if addr is not page-aligned or if the range of pages mapped overlaps 
@@ -355,6 +358,7 @@ void
 munmap (void *addr) {
 	do_munmap (addr);
 }
+#endif
 
 /* Check Address is valid */
 void
@@ -362,7 +366,9 @@ check_address (void *addr) {
 	// printf("%d\n", is_kernel_vaddr (addr));
 	if ((addr == NULL) || (is_kernel_vaddr (addr))) //null pointer or pointer to kernel address space
 		exit(-1);
-	if (spt_find_page (&thread_current ()->spt, addr) == NULL) // page fault case
+	// if (spt_find_page (&thread_current ()->spt, addr) == NULL) // page fault case
+		// exit(-1);
+	if (pml4_get_page (thread_current ()->pml4, addr) == NULL)
 		exit(-1);
 }
 
@@ -371,10 +377,10 @@ check_buffer (void *buffer, unsigned size) {
 	if ((buffer == NULL) || (is_kernel_vaddr (buffer))) //null pointer or pointer to kernel address space
 		exit(-1);
 	// check boundary
-	struct page *front_page = spt_find_page (&thread_current ()->spt, buffer);
-	struct page *back_page = spt_find_page (&thread_current ()->spt, buffer + size - 1);
-	if (front_page == NULL || back_page == NULL || !front_page->writable)	
-		exit(-1);
+	// struct page *front_page = spt_find_page (&thread_current ()->spt, buffer);
+	// struct page *back_page = spt_find_page (&thread_current ()->spt, buffer + size - 1);
+	// if (front_page == NULL || back_page == NULL || !front_page->writable)	
+	// 	exit(-1);
 }
 
 /* Get file with file descriptor */

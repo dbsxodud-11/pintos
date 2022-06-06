@@ -19,8 +19,11 @@ int write (int fd, void *buffer, unsigned length);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
+
+#ifdef VM
 void *mmap (void *addr, size_t length, int writable, int fd, off_t offset);
 void munmap (void *addr);
+#endif
 
 void check_address (void *addr);
 void check_buffer (void *buffer, unsigned size);

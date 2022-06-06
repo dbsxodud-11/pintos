@@ -55,14 +55,14 @@ byte_to_sector (const struct inode *inode, off_t pos) {
 static cluster_t
 byte_to_cluster (const struct inode *inode, off_t pos) {
 	ASSERT (inode != NULL)
-	if (pos < inode->data.length) {
-		cluster_t clst = inode->clst;
-		size_t i;
+	size_t sectors = pos / DISK_SECTOR_SIZE;
+	cluster_t cur_clst = fat_get (inode->clst);
 
-		for (i=0; i<pos/DISK_SECTOR_SIZE; i++) {
-			clst = fat_get (clst);
+	if (pos < inode->data.length) {
+		for (int i = 0; i < sectors; i++) {
+			cur_clst = fat_get (cur_clst);
 		}
-		return clst;
+		return cur_clst;
 	}
 	else
 		return -1;
@@ -118,12 +118,14 @@ inode_create (cluster_t clst, off_t length) {
 			size_t i;
 
 			cluster_t prev_clst = clst;
-			for (i=0; i<sectors; i++) {
-				clst = fat_create_chain (prev_clst);
+			clst = fat_create_chain (prev_clst);
+
+			for (i = 0; i < sectors; i++) {
 				if (clst == 0)
 					break;
 				disk_write (filesys_disk, cluster_to_sector (clst), zeros);
 				prev_clst = clst;
+				clst = fat_create_chain (prev_clst);
 			}
 			success = true;
 		}
