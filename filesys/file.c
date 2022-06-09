@@ -159,3 +159,17 @@ file_tell (struct file *file) {
 	ASSERT (file != NULL);
 	return file->pos;
 }
+
+/* Check whether the file is directory */
+bool
+file_isdir (struct file *file) {
+	ASSERT (file != NULL);
+	return inode_isdir (file->inode);
+}
+
+/* Returns inode number of the file */
+int
+file_get_inumber (struct file *file) {
+	ASSERT (file != NULL);
+	return inode_get_inumber (file->inode);
+}

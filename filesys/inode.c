@@ -84,7 +84,7 @@ inode_init (void) {
  * Returns true if successful.
  * Returns false if memory or disk allocation fails. */
 bool
-inode_create (cluster_t clst, off_t length) {
+inode_create (cluster_t clst, off_t length, int is_dir) {
 	struct inode_disk *disk_inode = NULL;
 	bool success = false;
 
@@ -100,6 +100,7 @@ inode_create (cluster_t clst, off_t length) {
 		disk_inode->length = length;
 		disk_inode->magic = INODE_MAGIC;
 
+		disk_inode->unused[0] = is_dir;
 		// if (free_map_allocate (sectors, &disk_inode->start)) {
 		// 	disk_write (filesys_disk, sector, disk_inode);
 		// 	if (sectors > 0) {
@@ -354,4 +355,15 @@ inode_allow_write (struct inode *inode) {
 off_t
 inode_length (const struct inode *inode) {
 	return inode->data.length;
+}
+
+/* Check whether inode is for directory or file */
+int
+inode_isdir (const struct inode *inode) {
+	struct inode_disk *disk_inode = malloc(sizeof (struct inode_disk));
+	memcpy(disk_inode, &inode->data, sizeof (struct inode_disk));
+
+	int success = disk_inode->unused[0];
+	free (disk_inode);
+	return success;
 }

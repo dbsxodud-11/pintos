@@ -25,6 +25,14 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset);
 void munmap (void *addr);
 #endif
 
+#ifdef EFILESYS
+bool chdir (const char *dir_name);
+bool mkdir (const char *dir_name);
+bool readdir (int fd, char *name);
+bool isdir (int fd);
+int inumber (int fd);
+#endif
+
 void check_address (void *addr);
 void check_buffer (void *buffer, unsigned size);
 struct file *get_file_with_fd (int fd);

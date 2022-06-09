@@ -101,6 +101,22 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			munmap(f->R.rdi);
 			break;
 #endif
+#ifdef EFILESYS
+		case SYS_CHDIR:
+			f->R.rax = chdir(f->R.rdi);
+		case SYS_MKDIR:
+			f->R.rax = mkdir(f->R.rdi);
+			break;
+		case SYS_READDIR:
+			f->R.rax = readdir(f->R.rdi, f->R.rsi);
+			break;
+		case SYS_ISDIR:
+			f->R.rax = isdir(f->R.rdi);
+			break;
+		case SYS_INUMBER:
+			f->R.rax = inumber(f->R.rdi);
+			break;
+#endif
 		default:
 			exit(-1);
 			break;
@@ -357,6 +373,47 @@ mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 void
 munmap (void *addr) {
 	do_munmap (addr);
+}
+#endif
+
+#ifdef EFILESYS
+bool
+chdir (const char *dir_name) {
+	if (dir_name == NULL)
+		return false;
+    return true;
+}
+
+bool
+mkdir (const char *dir_name) {
+	if (dir_name == NULL | strlen(dir_name) == 0)
+		return false;
+	return true;
+}
+
+bool
+readdir (int fd, char *name) {
+	if (!isdir (fd))
+		return false;
+	if (name == NULL)
+		return false;
+	return true;
+}
+
+bool
+isdir (int fd) {
+	struct file *file = get_file_with_fd (fd);
+	if (file == NULL)
+		return false;
+	return file_isdir (file);
+}
+
+int
+inumber (int fd) {
+	struct file *file = get_file_with_fd (fd);
+	if (file == NULL)
+		return false;
+	return file_get_inumber (file);
 }
 #endif
 
