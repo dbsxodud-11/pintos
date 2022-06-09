@@ -161,7 +161,6 @@ dir_add (struct dir *dir, const char *name, cluster_t clst) {
 	success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
 done:
-	ASSERT(success == true);
 	return success;
 }
 
