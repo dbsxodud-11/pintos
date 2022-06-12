@@ -255,6 +255,9 @@ thread_create (const char *name, int priority,
 	t->child_failed_to_duplicate = false;
 	list_push_back (&thread_current ()->children, &t->child_elem);
 
+#ifdef EFILESYS
+	t->dir_clst = thread_current ()->dir_clst;
+#endif
 	return tid;
 }
 
@@ -631,10 +634,6 @@ init_thread (struct thread *t, const char *name, int priority) {
 	}
 	t->fd_count = 0;
 	t->exec_file = NULL;
-
-#ifdef EFILESYS
-	t->dir_clst = NULL;
-#endif
 
 	t->magic = THREAD_MAGIC;
 }
