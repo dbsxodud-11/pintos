@@ -145,6 +145,9 @@ struct thread {
 	struct supplemental_page_table spt;
 	void *stack_bottom;
 #endif
+#ifdef EFILESYS
+	int dir_clst;
+#endif
 
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */

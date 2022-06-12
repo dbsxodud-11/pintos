@@ -5,6 +5,7 @@
 #include <list.h>
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
+#include "threads/thread.h"
 #include "threads/malloc.h"
 
 /* A directory. */
@@ -215,4 +216,10 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1]) {
 		}
 	}
 	return false;
+}
+
+void
+init_dir (void) {
+	struct thread *curr = thread_current ();
+	curr->dir_clst = ROOT_DIR_CLUSTER;
 }

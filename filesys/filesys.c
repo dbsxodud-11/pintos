@@ -120,6 +120,7 @@ do_format (void) {
 	fat_create ();
 	if (!dir_create (ROOT_DIR_SECTOR, 16))
 		PANIC ("root directory creation failed");
+	init_dir ();
 	fat_close ();
 #else
 	free_map_create ();
