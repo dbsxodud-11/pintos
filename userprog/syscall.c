@@ -13,6 +13,7 @@
 #include "intrinsic.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "filesys/directory.h"
 #include "threads/mmu.h"
 
 void syscall_entry (void);
@@ -104,6 +105,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 #ifdef EFILESYS
 		case SYS_CHDIR:
 			f->R.rax = chdir(f->R.rdi);
+			break;
 		case SYS_MKDIR:
 			f->R.rax = mkdir(f->R.rdi);
 			break;
@@ -179,7 +181,8 @@ wait (tid_t tid) {
 bool
 create (const char *file_name, unsigned initial_size) {
 	check_address (file_name);
-	bool result = filesys_create (file_name, initial_size);
+	char *real_file_name = search_dir (file_name);
+	bool result = filesys_create (real_file_name, initial_size);
 	return result;
 }
 
@@ -381,14 +384,16 @@ bool
 chdir (const char *dir_name) {
 	if (dir_name == NULL)
 		return false;
-    return true;
+	bool success = dir_chdir (dir_name);
+    return success;
 }
 
 bool
 mkdir (const char *dir_name) {
 	if (dir_name == NULL | strlen(dir_name) == 0)
 		return false;
-	return true;
+	bool success = dir_mkdir (dir_name);
+	return success;
 }
 
 bool

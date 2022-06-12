@@ -52,6 +52,11 @@ dir_open_root (void) {
 	return dir_open (inode_open (ROOT_DIR_CLUSTER));
 }
 
+struct dir *
+dir_open_relative_root (void) {
+	return dir_open (inode_open (thread_current ()->dir_clst));
+}
+
 /* Opens and returns a new directory for the same inode as DIR.
  * Returns a null pointer on failure. */
 struct dir *
@@ -222,4 +227,50 @@ void
 init_dir (void) {
 	struct thread *curr = thread_current ();
 	curr->dir_clst = ROOT_DIR_CLUSTER;
+}
+
+bool
+dir_chdir (const char *name) {
+	struct dir *dir = dir_open_root ();
+	
+	struct inode *inode;
+	if (dir_lookup (dir, name, &inode))
+		dir = dir_open (inode);
+	else
+		return false;
+	
+	inode_setdir (inode);
+	dir_close (dir);
+	return true;
+}
+
+bool
+dir_mkdir (const char *name) {
+	// First case: no slash(/)
+	struct dir *dir = dir_open_root ();
+
+	cluster_t new_dir_clst = fat_create_chain (0);
+	dir_create (new_dir_clst, 16);
+	dir_add (dir, name, new_dir_clst);
+}
+
+char *
+search_dir (const char *name) {
+	char *cp_name;
+	strlcpy (cp_name, name, strlen(name) + 1);
+
+	char *save_ptr;
+	char *token = strtok_r (cp_name, "/", &save_ptr);
+	char *next_token = strtok_r (NULL, "/", &save_ptr);
+
+	if (next_token == NULL)
+		return name;
+	// ASSERT(0);
+	struct dir *dir = dir_open_root ();
+	struct inode *inode;
+	if (dir_lookup (dir, token, &inode))
+		dir = dir_open (inode);
+
+	// dir_close (dir);
+	return next_token;
 }

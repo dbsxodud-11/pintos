@@ -6,6 +6,7 @@
 #include <string.h>
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
+#include "threads/thread.h"
 #include "threads/malloc.h"
 
 /* Identifies an inode. */
@@ -366,4 +367,10 @@ inode_isdir (const struct inode *inode) {
 	int success = disk_inode->unused[0];
 	free (disk_inode);
 	return success;
+}
+
+void
+inode_setdir (const struct inode *inode) {
+	struct thread *curr = thread_current ();
+	curr->dir_clst = inode->clst;
 }
