@@ -250,7 +250,7 @@ dir_mkdir (const char *name) {
 	struct dir *dir = dir_open_root ();
 
 	cluster_t new_dir_clst = fat_create_chain (0);
-	bool success = (dir_create (new_dir_clst, 16)
+	bool success = (dir_create (new_dir_clst, 64)
 		&& dir_add (dir, name, new_dir_clst));
 
 	return success;
